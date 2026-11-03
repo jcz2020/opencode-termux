@@ -13,6 +13,7 @@
 # 用法：build.sh <opentui-src> <ndk-root> [api=30]
 set -euo pipefail
 
+GITHUB_WORKSPACE="${GITHUB_WORKSPACE:-$(cd "$(dirname "$0")/../../.." && pwd)}"
 SRC="${1:?opentui source dir}"
 NDK="${2:?NDK root (…/android-ndk-r27c)}"
 API="${3:-30}"
@@ -162,6 +163,10 @@ for f in $(sed -n 's/^ *"\(yoga\/[^"]*\.cpp\)",$/\1/p' build.zig); do
   n=$((n+1))
 done
 "$CXX" "${CXXFLAGS[@]}" -c src/yoga-bridge.cpp -o "$OBJ/yoga-bridge.o"
+n=$((n+1))
+# bionic 缺的 glibc 扩展（pthread_tryjoin_np 等）
+"$CXX" "${CXXFLAGS[@]}" -c "$GITHUB_WORKSPACE/spike/libopentui-android/compat.c" -o "$OBJ/compat.o" 2>/dev/null \
+  || cc -target "aarch64-linux-android$API" -O2 -fPIC -c "$GITHUB_WORKSPACE/spike/libopentui-android/compat.c" -o "$OBJ/compat.o"
 n=$((n+1))
 echo "    $n 个 C++ 目标文件"
 
