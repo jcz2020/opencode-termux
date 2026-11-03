@@ -1,5 +1,8 @@
 # opencode-termux（自制适配线）
 
+[![build-deb](https://github.com/jcz2020/opencode-termux/actions/workflows/build-deb.yml/badge.svg)](https://github.com/jcz2020/opencode-termux/actions/workflows/build-deb.yml)
+[![release](https://img.shields.io/github/v/release/jcz2020/opencode-termux)](https://github.com/jcz2020/opencode-termux/releases)
+
 自己的 Termux/aarch64 opencode 打包项目：**取上游 bionic 二进制 → 打自己的补丁 shim →
 出自己的 deb**。不编译 opencode、不编译 bun，分钟级出包，不跟上游发布节奏。
 
@@ -34,6 +37,29 @@ M_HEAP_TAGGING_LEVEL_NONE)`，之后 `malloc` 返回 `0x7d831e9b00`。
 包名沿用 `opencode`，版本 `上游版本+termux<N>` → `dpkg -i` 是升级不是冲突，
 所有文件都归 dpkg 管（`dpkg -S` 可查），`apt` 也不会再把它顶回上游旧版。
 
+## 安装（直接装 release）
+
+CI 在 tag 上自动出包并发布：
+
+```sh
+curl -LO "https://github.com/jcz2020/opencode-termux/releases/download/v2.2.5+termux1/opencode_2.2.5+termux1_aarch64.deb"
+dpkg -i opencode_2.2.5+termux1_aarch64.deb
+opencode --version        # v2.2.5
+```
+
+`github.com` 不通时（本机就是这样）走 release **asset API**：
+
+```sh
+id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.5+termux1" \
+     | jq -r '.assets[] | select(.name|endswith(".deb")) | .id')
+curl -sSL -H 'Accept: application/octet-stream' -o opencode.deb \
+  "https://api.github.com/repos/jcz2020/opencode-termux/releases/assets/$id"
+dpkg -i opencode.deb
+```
+
+装完 `opencode` / `oc` 直接进 TUI；如果崩在 `Pointer exceeds safe integer range`，
+说明 shim 没加载（`dpkg -S $PREFIX/lib/opencode/libnoheap.so` 应该有输出）。
+
 ## 用法
 
 ```sh
@@ -45,6 +71,13 @@ make clean
 ```
 
 换版本只改 `VERSION`；`REV=2` 可以覆盖已发布的同版本。
+
+### 出包（CI）
+
+`.github/workflows/build-deb.yml`：`git push` 一个 tag（形如 `v2.2.5+termux1`）→
+runner 装 NDK 编 shim（`CC=aarch64-linux-android24-clang`）→ `make deb` → 校验包结构 →
+建 release 并上传 `.deb` + `.sha256`。也可 `gh workflow run build-deb -f version=2.2.5 -f rev=1`
+手动跑（只出 artifact，不发 release）。
 
 ## 上游三种构建线（读 Makefile / produce-local.sh / build-bionic.sh 得到）
 
