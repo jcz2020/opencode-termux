@@ -130,6 +130,42 @@ CI runner 是 x86_64，可以跑 **NDK 自带的 clang**（`aarch64-linux-androi
 - `~/tmp/ocsrc`：opencode v2 源码（api.github.com tarball，83 MB）
 - `~/tmp/otcore`：`@opentui/core` npm 包解包
 
+## 9. A 线跑通了（CI，2026-11-04）✅
+
+`spike/libopentui-android/build.sh` + `.github/workflows/spike-libopentui-android.yml` 现可一键产出
+**能在 android bun 里 dlopen 的** `libopentui.so`：
+
+```
+run 41687307711 → completed/success
+  size: 20,503,304 bytes
+  OK: 没有未解析的 C++ ABI 符号
+  兼容层符号 pthread_tryjoin_np: OK
+  导出的 FUNC 数: 2024
+```
+
+设备侧实测（官方 android bun 1.4.4）：
+
+```
+$ bun ffi2.ts
+dlopen OK
+symbol call OK, handle = null
+```
+
+### 工作分工（关键：谁编什么）
+
+| 部分 | 谁编 | 原因 |
+|---|---|---|
+| opentui 核心（Zig）+ C 依赖（miniaudio/lcms2/libwebp） | `zig build -Dlibrary-target=aarch64-linux-android.30` | 只产 `.a`，不链接；zig 会在链接阶段报 `unable to provide libc`，**但 .a 已经产出**，我们忽略该错误 |
+| yoga 20 个 `.cpp` + `yoga-bridge.cpp` | NDK `aarch64-linux-android30-clang++` | 天然 `std::__ndk1`，符号自洽 |
+| `compat.c`（`pthread_tryjoin_np`） | NDK `…-clang`（**必须按 C 编**） | bionic 没有这个 glibc 扩展；用 clang++ 编会被名字 mangle |
+| 合并成 `.so` | NDK `clang++ -shared -static-libstdc++` | 静态链 libc++，无运行时依赖 |
+
+### build.zig 需要的三处补丁
+
+1. android 下给 translate-c / module 注入 NDK sysroot 的 include（`-Dsysroot=`）。
+2. `module.link_libc = false`：静态库阶段不链 libc，交给 NDK clang++。
+3. `-Dandroid-cxx-external=true`：跳过 build.zig 自己的 C++ 编译（yoga 交给 NDK clang++）。
+
 ## 8. 另一个发现：opentui 有官方逃生口
 
 `@opentui/core` 的 `resolveNativeLibraryPath()` 先看 **`OTUI_ASSET_ROOT`**：
