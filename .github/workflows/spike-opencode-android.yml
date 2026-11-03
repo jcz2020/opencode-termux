@@ -1,0 +1,117 @@
+name: spike-opencode-android
+
+# P3：用官方 android bun + 我们自己编的两个 bionic 原生库，把 opencode 源码
+# 编成 aarch64 bionic 单文件（不依赖任何上游打包）。
+on:
+  workflow_dispatch:
+    inputs:
+      opencode_ref:
+        description: 'opencode 分支/tag/commit'
+        required: true
+        default: 'main'
+      api:
+        description: 'Android API level'
+        required: true
+        default: '30'
+
+permissions:
+  contents: read
+
+env:
+  NDK_VERSION: 'r27c'
+  ZIG_VERSION: '0.17.0'
+  BUN_RELEASE: 'bun-v1.4.4'
+  API: ${{ inputs.api }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bun (host, for running the build)
+        run: |
+          set -euo pipefail
+          curl -sSL -o bun.zip "https://github.com/oven-sh/bun/releases/download/${BUN_RELEASE}/bun-linux-x64.zip"
+          unzip -q bun.zip
+          echo "$PWD/bun-linux-x64" >> "$GITHUB_PATH"
+          ./bun-linux-x64/bun --version
+
+      - name: Install zig ${{ env.ZIG_VERSION }}
+        run: |
+          set -euo pipefail
+          curl -sSL -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
+          tar -xf zig.tar.xz
+          echo "$PWD/zig-x86_64-linux-${ZIG_VERSION}" >> "$GITHUB_PATH"
+
+      - name: Install NDK ${{ env.NDK_VERSION }}
+        run: |
+          set -euo pipefail
+          curl -sSL -o ndk.zip "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip"
+          unzip -q ndk.zip
+          echo "NDK_ROOT=$PWD/android-ndk-${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Install rust (for bun-pty)
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable --profile minimal
+          rustup target add aarch64-linux-android
+
+      - name: Fetch sources (opentui / bun-pty / opencode)
+        run: |
+          set -euo pipefail
+          ref='${{ inputs.opencode_ref }}'
+          curl -sSL -o otui.tar.gz "https://codeload.github.com/anomalyco/opentui/tar.gz/main"
+          mkdir -p otui && tar -xf otui.tar.gz -C otui --strip-components=1
+          curl -sSL -o bp.tar.gz "https://codeload.github.com/sursaone/bun-pty/tar.gz/refs/tags/v0.4.11"
+          mkdir -p bp && tar -xf bp.tar.gz -C bp --strip-components=1
+          curl -sSL -o oc.tar.gz "https://api.github.com/repos/anomalyco/opencode/tarball/${ref}"
+          mkdir -p oc && tar -xf oc.tar.gz -C oc --strip-components=1
+          cat oc/package.json | head -5
+
+      - name: Build libopentui.so (bionic)
+        run: bash spike/libopentui-android/build.sh "$PWD/otui" "$NDK_ROOT" "$API"
+
+      - name: Build librust_pty.so (bionic)
+        run: |
+          set -euo pipefail
+          CLANG="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${API}-clang"
+          cd bp/rust-pty
+          mkdir -p .cargo
+          cargo vendor vendor > .cargo/config.toml
+          python3 - <<'PY'
+          import json, pathlib
+          p = pathlib.Path("vendor/termios/src/os/mod.rs"); s = p.read_text()
+          s = s.replace('#[cfg(target_os = "linux")] pub use self::linux as target;',
+                        '#[cfg(any(target_os = "linux", target_os = "android"))] pub use self::linux as target;')
+          s = s.replace('#[cfg(target_os = "linux")] pub mod linux;',
+                        '#[cfg(any(target_os = "linux", target_os = "android"))] pub mod linux;')
+          p.write_text(s)
+          ck = p.parents[2] / ".cargo-checksum.json"
+          d = json.loads(ck.read_text()); d["files"] = {}; ck.write_text(json.dumps(d))
+          PY
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CLANG"
+          export CC_aarch64_linux_android="$CLANG"
+          cargo build --release --target aarch64-linux-android --offline
+          ls -la target/aarch64-linux-android/release/librust_pty.so
+
+      - name: Patch + build opencode for android
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          bash spike/opencode-android/build.sh \
+            "$PWD/oc" \
+            "$PWD/otui/packages/native/lib/aarch64-linux-android.${API}/libopentui.so" \
+            "$PWD/bp/rust-pty/target/aarch64-linux-android/release/librust_pty.so" \
+            "$BUN_RELEASE"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencode-android-${{ inputs.api }}
+          path: |
+            oc/packages/cli/dist/cli-android-arm64/**
+            otui/packages/native/lib/aarch64-linux-android.${{ inputs.api }}/libopentui.so
+            bp/rust-pty/target/aarch64-linux-android/release/librust_pty.so
+          retention-days: 14
