@@ -114,20 +114,18 @@ jobs:
           set -euo pipefail
           title="上游 v${VER} 已发布，Termux 跟进"
           existing=$(gh issue list --repo "$REPO" --state open --search "$title in:title" --json number --jq '.[0].number // empty' || true)
-          body=$(cat <<EOF
-上游 [anomalyco/opencode](https://github.com/anomalyco/opencode/releases/tag/v${VER}) 发布了 **v${VER}**。
-
-- [ ] 等 Hope2333 的 bionic 资产（\`opencode-${VER}-1-aarch64.pkg.tar.xz\`）→ 建 tag \`v${VER}+termux1\` 出包
-- [x] 源码线先跑一遍（workflow \`spike-opencode-android\`，产物在 Actions artifact）
-
-打包流程见 README；本 issue 由 \`watch-upstream\` 自动创建，可以直接关掉。
-EOF
-)
+          body=$(printf '%s\n' \
+            "上游 [anomalyco/opencode](https://github.com/anomalyco/opencode/releases/tag/v${VER}) 发布了 **v${VER}**。" \
+            "" \
+            "- [ ] 等 Hope2333 的 bionic 资产 → 建 tag \`v${VER}+termux1\` 出包" \
+            "- [x] 源码线先跑一遍（workflow \`spike-opencode-android\`，产物在 Actions artifact）" \
+            "" \
+            "本 issue 由 \`watch-upstream\` 自动创建，可以直接关掉。")
           if [ -n "$existing" ]; then
             echo "已有 issue #$existing，更新评论"
             gh issue comment "$existing" --repo "$REPO" --body "v${VER} 仍在跟进中（$(date -u +%FT%TZ)）"
           else
-            gh issue create --repo "$REPO" --title "$title" --body "$body" --label "" || gh issue create --repo "$REPO" --title "$title" --body "$body"
+            gh issue create --repo "$REPO" --title "$title" --body "$body"
           fi
           gh workflow run spike-opencode-android --repo "$REPO" --ref main \
             -f opencode_ref="v${VER}" -f api=30
