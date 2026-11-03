@@ -96,6 +96,14 @@ jobs:
           cargo build --release --target aarch64-linux-android --offline
           ls -la target/aarch64-linux-android/release/librust_pty.so
 
+      - name: Install opencode deps
+        run: |
+          set -euo pipefail
+          cd oc
+          bun install --frozen-lockfile || bun install
+          ls -d node_modules/@opentui/core >/dev/null
+          cat node_modules/@opentui/core/package.json | head -3
+
       - name: Patch + build opencode for android
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

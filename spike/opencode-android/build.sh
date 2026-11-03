@@ -98,7 +98,7 @@ export BUN_COMPILE_RELEASE="$RELEASE"
 export OPENCODE_TARGET=android-arm64
 export OTUI_ASSET_ROOT="" # 运行时注入，构建期不需要
 cd packages/cli
-bun run script/build.ts --skip-web-ui
+bun run script/build.ts --skip-web-ui --skip-install
 
 echo "==> 产物"
 OUT="dist/cli-android-arm64"
