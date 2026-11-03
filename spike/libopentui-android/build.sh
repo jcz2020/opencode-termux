@@ -164,9 +164,9 @@ for f in $(sed -n 's/^ *"\(yoga\/[^"]*\.cpp\)",$/\1/p' build.zig); do
 done
 "$CXX" "${CXXFLAGS[@]}" -c src/yoga-bridge.cpp -o "$OBJ/yoga-bridge.o"
 n=$((n+1))
-# bionic 缺的 glibc 扩展（pthread_tryjoin_np 等）
-"$CXX" "${CXXFLAGS[@]}" -c "$GITHUB_WORKSPACE/spike/libopentui-android/compat.c" -o "$OBJ/compat.o" 2>/dev/null \
-  || cc -target "aarch64-linux-android$API" -O2 -fPIC -c "$GITHUB_WORKSPACE/spike/libopentui-android/compat.c" -o "$OBJ/compat.o"
+# bionic 缺的 glibc 扩展（pthread_tryjoin_np 等）——必须按 C 编（否则名字会被 mangle）
+"$HOSTBIN/aarch64-linux-android${API}-clang" -target "aarch64-linux-android$API" -O2 -fPIC \
+  -c "$GITHUB_WORKSPACE/spike/libopentui-android/compat.c" -o "$OBJ/compat.o"
 n=$((n+1))
 echo "    $n 个 C++ 目标文件"
 
@@ -187,5 +187,6 @@ if [ -n "$undef" ]; then
 else
   echo "OK: 没有未解析的 C++ ABI 符号"
 fi
+echo "兼容层符号: $(readelf --dyn-syms -W "$OUT" | awk '$8=="pthread_tryjoin_np" {print "OK"}' | head -1)"
 echo "导出的 FUNC 数: $(readelf --dyn-syms -W "$OUT" | awk '$7!="UND" && $4=="FUNC" {c++} END{print c+0}')"
 echo "DONE: $OUT"
