@@ -93,7 +93,7 @@ jobs:
             echo "bionic 资产还没有: $asset → 走源码线"
           fi
 
-      - name: Create tag to trigger packaging (asset available)
+      - name: Dispatch packaging (asset available)
         if: steps.state.outputs.new == 'true' && steps.mirror.outputs.available == 'true' && inputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -101,13 +101,11 @@ jobs:
           REV: ${{ steps.state.outputs.rev }}
         run: |
           set -euo pipefail
-          tag="v${VER}+termux${REV}"
-          sha=$(gh api "repos/$REPO/git/ref/heads/main" --jq .object.sha)
-          obj=$(gh api -X POST "repos/$REPO/git/tags" \
-            -f tag="$tag" -f message="opencode ${VER} + termux${REV} (auto follow-up)" \
-            -f object="$sha" -f type=commit --jq .sha)
-          gh api -X POST "repos/$REPO/git/refs" -f ref="refs/tags/$tag" -f sha="$obj" --jq .ref
-          echo "已建 tag $tag → build-deb 会自动出包并发 release"
+          # 注意：用 API 建 tag 不会触发 push 事件（GitHub 已知行为），
+          # 所以直接 dispatch build-deb，由它自己建 release（顺带建 tag）。
+          gh workflow run build-deb --repo "$REPO" --ref main \
+            -f version="$VER" -f rev="$REV" -f publish=true
+          echo "已触发 build-deb v${VER}+termux${REV}（publish=true）"
 
       - name: Open issue + build from source (asset missing)
         if: steps.state.outputs.new == 'true' && steps.mirror.outputs.available == 'false' && inputs.dry_run != 'true'
