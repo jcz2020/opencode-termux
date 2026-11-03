@@ -72,6 +72,12 @@ jobs:
                         '#[cfg(any(target_os = "linux", target_os = "android"))] pub mod linux;')
           p.write_text(s)
           print("patched", sys.argv[1])
+          # vendored 目录改了内容，必须清掉 per-file 校验和（保留 package 摘要）
+          import json
+          ck = pathlib.Path(sys.argv[1]).parent.parent / ".cargo-checksum.json"
+          d = json.loads(ck.read_text()); d["files"] = {}
+          ck.write_text(json.dumps(d))
+          print("checksum reset", ck)
           PY
           git -C . diff --stat 2>/dev/null || true
 
