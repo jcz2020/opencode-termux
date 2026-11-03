@@ -101,8 +101,7 @@ jobs:
           set -euo pipefail
           cd oc
           bun install --frozen-lockfile || bun install
-          ls -d node_modules/@opentui/core >/dev/null
-          cat node_modules/@opentui/core/package.json | head -3
+          find . -maxdepth 4 -type d -path '*/node_modules/@opentui/core' | head -3
 
       - name: Patch + build opencode for android
         env:
