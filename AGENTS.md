@@ -68,6 +68,8 @@ make clean                 # 清 build/ 与 dist/
   注意远端 commit SHA 与本地**不一致**（GitHub 把 author/committer 时区归一化成
   UTC，commit 原始字节不同），但 tree 逐字节一致，脚本会断言这点；
   推送进度记在 `.git/api-push-state`，不依赖本地有远端对象。
+  若某次网络恰巧通（`git push` 能连上），跑一次 `git push --force origin main`
+  即可把远端 SHA 与本地重新对齐（仓库只有自己在推，force 安全），之后两边一致。
 - npm 的 `opencode-linux-arm64` 最高 **1.19.5**（v1 家族）；**v2 的 aarch64 二进制
   在 npm 上没有**，只能从源码编（上游 B 线）。
 
