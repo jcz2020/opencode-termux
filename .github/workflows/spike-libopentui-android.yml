@@ -58,10 +58,7 @@ jobs:
         env:
           API: ${{ inputs.api }}
         run: |
-          bash spike/libopentui-android/build.sh \
-            "$PWD/otui" \
-            "$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/sysroot" \
-            "$API"
+          bash spike/libopentui-android/build.sh "$PWD/otui" "$NDK_ROOT" "$API"
 
       - name: Upload libopentui.so
         uses: actions/upload-artifact@v4

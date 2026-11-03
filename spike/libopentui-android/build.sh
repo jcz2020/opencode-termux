@@ -1,74 +1,66 @@
 #!/usr/bin/env bash
-# build.sh — spike: 在 x86_64 Linux runner 上把 opentui 编成 aarch64-linux-android 的
-# libopentui.so（bionic），用来验证"不依赖 Hope2333"的源码线。
+# build.sh — 在 x86_64 Linux runner 上把 opentui 编成 aarch64-linux-android（bionic）的
+# libopentui.so。这是"不依赖上游打包"的源码线第一块砖。
 #
-# 设计要点：上游 CI 的正常做法是 zig 自己搞定一切（含 libc/libc++）。
-# 设备上 zig 会拒绝为 android "provide libc"，所以之前只能产出 .a；
-# 这里在 runner 上一次跑通：zig 编核心 + 链接成 .so。
+# 为什么要在 runner 上做：zig 0.17.0 不会为 android "provide libc"
+# （`unable to provide libc for target …-android.30`），所以 .so 不能由 zig 直接链。
+# runner 是 x86_64，可以直接跑 NDK 自带的 clang —— 于是分工：
 #
-# 用法：build.sh <opentui-src> <ndk-sysroot> [api=30]
+#   Zig 部分（opentui 核心 + C 依赖） → zig build → libopentui.a（不链接，不涉及 libc++）
+#   C++ 部分（yoga / yoga-bridge）     → NDK clang++（天然 std::__ndk1）
+#   合并                              → NDK clang++ -shared -static-libstdc++ → libopentui.so
+#
+# 用法：build.sh <opentui-src> <ndk-root> [api=30]
 set -euo pipefail
 
 SRC="${1:?opentui source dir}"
-SYSROOT="${2:?NDK sysroot (…/toolchains/llvm/prebuilt/linux-x86_64/sysroot)}"
+NDK="${2:?NDK root (…/android-ndk-r27c)}"
 API="${3:-30}"
+SYSROOT="$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
+HOSTBIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
+CXX="$HOSTBIN/aarch64-linux-android${API}-clang++"
 NATIVE="$SRC/packages/native"
 TARGET="aarch64-linux-android.${API}"
+LIBS="$SYSROOT/usr/lib/aarch64-linux-android/$API"
 
+[ -x "$CXX" ] || { echo "ERROR: 没有 $CXX" >&2; exit 1; }
 cd "$NATIVE"
 
-echo "==> NDK sysroot 补齐 libpthread/librt 软链（Android 已并入 libc）"
-LIBS="$SYSROOT/usr/lib/aarch64-linux-android/$API"
-for l in libpthread.so librt.so; do
-  [ -e "$LIBS/$l" ] || ln -sf libc.so "$LIBS/$l"
-done
-ls -la "$LIBS/libpthread.so" "$LIBS/librt.so" 2>/dev/null || true
+echo "==> zig $(zig version) / cxx $("$CXX" --version | head -1) / target $TARGET"
 
-echo "==> zig $(zig version) / target $TARGET"
-zig version | grep -q '^0\.17\.0$' || { echo "ERROR: 需要 zig 0.17.0（opentui 的 .zig-version）" >&2; exit 1; }
+echo "==> NDK 补 libpthread/librt 软链（Android 已并入 libc）"
+for l in libpthread.so librt.so; do [ -e "$LIBS/$l" ] || ln -sf libc.so "$LIBS/$l"; done
 
 echo "==> 解 vendor 依赖（yoga/ghostty/uucode，无网络）"
 sh scripts/prepare-zig-deps.sh
 
-echo "==> 打 build.zig 补丁（只在 zig 自己找不到 sysroot 时生效）"
+echo "==> 打 build.zig 补丁：android 下 C++ 交给 NDK clang"
 python3 - "$PWD" <<'PY'
 import pathlib, sys
 root = pathlib.Path(sys.argv[1])
 p = root / "build.zig"
 s = p.read_text()
 if "spike patch: aarch64-linux-android" in s:
-    print("   already patched")
-    sys.exit(0)
+    print("   already patched"); sys.exit(0)
 
 block = '''
-// ── spike patch: aarch64-linux-android via NDK sysroot (-Dsysroot=...) ──
+// ── spike patch: aarch64-linux-android ──
+// NDK sysroot 头文件路径（zig 自己找不到），以及"android 的 C++ 交给 NDK clang"开关。
 var android_sysroot: ?[]const u8 = null;
-
-const AndroidPaths = struct { inc: []const u8, inc_arch: []const u8 };
-
-fn androidPaths(b: *std.Build) ?AndroidPaths {
-    const sys = android_sysroot orelse return null;
-    return .{
-        .inc = b.pathJoin(&.{ sys, "usr/include" }),
-        .inc_arch = b.pathJoin(&.{ sys, "usr/include/aarch64-linux-android" }),
-    };
-}
 
 fn addAndroidSysrootIncludes(b: *std.Build, step: anytype, target: std.Build.ResolvedTarget) void {
     if (target.result.abi != .android) return;
-    const a = androidPaths(b) orelse return;
-    step.addSystemIncludePath(.{ .cwd_relative = a.inc });
-    step.addSystemIncludePath(.{ .cwd_relative = a.inc_arch });
+    const sys = android_sysroot orelse return;
+    step.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ sys, "usr/include" }) });
+    step.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ sys, "usr/include/aarch64-linux-android" }) });
 }
 
 fn addAndroidSysrootModule(b: *std.Build, module: *std.Build.Module, target: std.Build.ResolvedTarget) void {
     if (target.result.abi != .android) return;
-    const a = androidPaths(b) orelse return;
-    module.addSystemIncludePath(.{ .cwd_relative = a.inc });
-    module.addSystemIncludePath(.{ .cwd_relative = a.inc_arch });
+    const sys = android_sysroot orelse return;
+    module.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ sys, "usr/include" }) });
+    module.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ sys, "usr/include/aarch64-linux-android" }) });
     module.addCMacro("__ANDROID_API__", "30");
-    // zig 会给绝对库路径前缀 --sysroot，所以这里写 sysroot 相对路径
-    module.addLibraryPath(.{ .cwd_relative = "/usr/lib/aarch64-linux-android/30" });
 }
 '''
 
@@ -80,12 +72,12 @@ a = '    const target_option = b.option'
 assert a in s
 s = s.replace(a, '    android_sysroot = b.option([]const u8, "sysroot", "NDK sysroot for aarch64-linux-android");\n' + a, 1)
 
-for anchor_line, step in (
+for line, step in (
     ('    miniaudio_translate.addIncludePath(b.path("src"));', 'miniaudio_translate'),
     ('    yoga_translate.addIncludePath(yoga_dep.path(""));', 'yoga_translate'),
 ):
-    assert anchor_line in s
-    s = s.replace(anchor_line, anchor_line + f"\n    addAndroidSysrootIncludes(b, {step}, target);", 1)
+    assert line in s
+    s = s.replace(line, line + f"\n    addAndroidSysrootIncludes(b, {step}, target);", 1)
 
 h = '''    const header = b.addTranslateC(.{
         .root_source_file = b.path("include/opentui.h"),
@@ -99,36 +91,74 @@ m = '    applyDependencies(b, module, optimize, target, build_options);'
 assert m in s
 s = s.replace(m, '    addAndroidSysrootModule(b, module, target);\n' + m, 1)
 
+# android：不编 C++（由 build.sh 用 NDK clang++ 编）
+old = '''    module.link_libcpp = true;
+    module.addIncludePath(yoga_dep.path(""));
+    module.addCSourceFiles(.{
+        .root = yoga_dep.path(""),
+        .files = &YOGA_CXX_SOURCES,
+        .flags = flags,
+    });
+    module.addCSourceFile(.{ .file = b.path("src/yoga-bridge.cpp"), .flags = flags });'''
+new = '''    module.addIncludePath(yoga_dep.path(""));
+    if (!android_cxx_external) {
+        module.link_libcpp = true;
+        module.addCSourceFiles(.{
+            .root = yoga_dep.path(""),
+            .files = &YOGA_CXX_SOURCES,
+            .flags = flags,
+        });
+        module.addCSourceFile(.{ .file = b.path("src/yoga-bridge.cpp"), .flags = flags });
+    }'''
+assert old in s
+s = s.replace(old, new, 1)
+
+s = s.replace('var android_sysroot: ?[]const u8 = null;',
+              'var android_sysroot: ?[]const u8 = null;\nvar android_cxx_external = false;')
+
+opt = '    android_sysroot = b.option([]const u8, "sysroot", "NDK sysroot for aarch64-linux-android");'
+s = s.replace(opt, opt + '\n    android_cxx_external = b.option(bool, "android-cxx-external", "C++ objects come from the NDK clang") orelse false;', 1)
+
 p.write_text(s)
 print("   patched build.zig")
 PY
 
-echo "==> zig build（aarch64-linux-android.$API, ReleaseFast）"
-zig build --sysroot "$SYSROOT" -Dsysroot="$SYSROOT" \
-  -Dlibrary-target="$TARGET" -Doptimize=ReleaseFast
+echo "==> 1/3 zig 编核心 → libopentui.a"
+zig build --sysroot "$SYSROOT" -Dsysroot="$SYSROOT" -Dandroid-cxx-external=true \
+  -Dlibrary-target="$TARGET" -Doptimize=ReleaseFast || true
+A="$NATIVE/lib/$TARGET/libopentui.a"
+[ -f "$A" ] || { echo "ERROR: 没产出 $A" >&2; exit 1; }
+echo "    $A ($(stat -c%s "$A") bytes)"
 
-echo "==> 找产物"
-OUT="$NATIVE/lib/$TARGET"
-ls -la "$OUT" || true
-SO="$OUT/libopentui.so"
-[ -f "$SO" ] || { echo "ERROR: 没有 libopentui.so（zig 该 target 没出动态库）" >&2; exit 1; }
+echo "==> 2/3 NDK clang++ 编 C++（yoga + yoga-bridge，std::__ndk1）"
+OBJ="$NATIVE/.spike-obj"; rm -rf "$OBJ"; mkdir -p "$OBJ"
+CXXFLAGS=(-target "aarch64-linux-android$API" -std=c++20 -fexceptions -frtti -fPIC -O2
+          -I zig-deps/yoga -I "$SYSROOT/usr/include" -I "$SYSROOT/usr/include/aarch64-linux-android")
+n=0
+for f in $(sed -n 's/^ *"\(yoga\/[^"]*\.cpp\)",$/\1/p' build.zig); do
+  "$CXX" "${CXXFLAGS[@]}" -c "zig-deps/$f" -o "$OBJ/$(echo "$f" | tr '/' '_').o"
+  n=$((n+1))
+done
+"$CXX" "${CXXFLAGS[@]}" -c src/yoga-bridge.cpp -o "$OBJ/yoga-bridge.o"
+n=$((n+1))
+echo "    $n 个 C++ 目标文件"
+
+echo "==> 3/3 链接 libopentui.so"
+OUT="$NATIVE/lib/$TARGET/libopentui.so"
+"$CXX" -target "aarch64-linux-android$API" -shared -fPIC -o "$OUT" \
+  -Wl,--whole-archive "$A" -Wl,--no-whole-archive "$OBJ"/*.o \
+  -Wl,-soname,libopentui.so -static-libstdc++ -static-libgcc -lm -ldl
 
 echo "==> 自检"
-file "$SO"
-size=$(stat -c%s "$SO")
-echo "size: $size bytes"
-[ "$size" -gt 5000000 ] || { echo "ERROR: 产物太小，可能没链进去" >&2; exit 1; }
+file "$OUT"
+echo "size: $(stat -c%s "$OUT") bytes"
+[ "$(stat -c%s "$OUT")" -gt 5000000 ] || { echo "ERROR: 产物太小" >&2; exit 1; }
 
-echo "--- 不能有 C++ ABI 未解析符号（__1 / __ndk1 混链的典型症状）"
-undef="$(readelf --dyn-syms -W "$SO" | awk '$7=="UND" && $8 ~ /^_Z/ {print $8}' | sort -u)"
+undef="$(readelf --dyn-syms -W "$OUT" | awk '$7=="UND" && $8 ~ /^_Z/ {print $8}' | sort -u)"
 if [ -n "$undef" ]; then
-  echo "$undef"
-  echo "WARN: 仍有 C++ 未解析符号（见上）；TUI 加载时会失败，但产物先带回去分析" >&2
+  echo "WARN: 仍有 C++ 未解析符号："; echo "$undef"
 else
   echo "OK: 没有未解析的 C++ ABI 符号"
 fi
-
-echo "--- 导出符号数"
-echo "$(readelf --dyn-syms -W "$SO" | awk '$7!="UND" && $4=="FUNC" {c++} END{print c+0}')"
-
-echo "DONE: $SO"
+echo "导出的 FUNC 数: $(readelf --dyn-syms -W "$OUT" | awk '$7!="UND" && $4=="FUNC" {c++} END{print c+0}')"
+echo "DONE: $OUT"
