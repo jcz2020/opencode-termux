@@ -68,6 +68,30 @@ v2 的 aarch64 二进制在 npm 上没有，只能 B 线从源码编——所以
 所以哪天拿到 android bun + bionic libopentui，改成源码线只是换 `scripts/build-deb.sh`
 里的取件步骤，包结构不用动。
 
+## 致谢 / 引用
+
+**本项目的二进制不是我们编译的**，全部取自上游构建；我们只做了运行时补丁与打包。
+没有下面这些项目，这个仓库一行都跑不起来。
+
+- **[Hope2333/opencode-termux](https://github.com/Hope2333/opencode-termux)**（幽零小喵）—
+  Termux/bionic 原生构建，以及 `libopencode-crhandler.so`（SIGSYS→ENOSYS、close_range）
+  seccomp shim。本项目的 `cache/` 取件源、包内布局（`bin/opencode.real` 与
+  `RUNPATH=$ORIGIN/../lib/opencode` 的强约束）、以及「不压 UPX / 不 preload crhandler」
+  这些设计边界，都是从他们的实现里读出来的。MIT。
+- **[Hope2333/bun-termux-loader](https://github.com/Hope2333/bun-termux-loader)** —
+  bun standalone 二进制的 ELF 手术（interp / 动态段 / bunfs shim），是上游 Wrapper 线的核心。
+- **[anomalyco/opencode](https://github.com/anomalyco/opencode)** — opencode 本体（MIT），
+  也就是本文里所有「上游」二进制的来源。[opencode.ai](https://opencode.ai)
+- **[Android bionic](https://android.googlesource.com/platform/bionic/)** —
+  `mallopt(M_BIONIC_SET_HEAP_TAGGING_LEVEL, M_HEAP_TAGGING_LEVEL_NONE)` 与
+  `M_HEAP_TAGGING_LEVEL_TBI` 的行为依据是 bionic 的 `<malloc.h>`；本项目的全部修复
+  就是「读懂它 + 改一个进程级开关」。
+- **[Termux](https://termux.dev)** — `dpkg-deb` / `apt` 打包路径、umask 077 导致 control
+  目录权限不足的坑、以及 `tmux` 冒烟手法。
+
+本仓库**不包含**上游二进制与产物（`cache/`、`dist/` 均在 `.gitignore` 里），
+`make fetch` 会自己按 `.MTREE` sha256 校验后下载。
+
 ## 备注
 
 - 本机 `github.com` 直连不可用；`api.github.com` / `objects.githubusercontent.com` /
@@ -76,3 +100,8 @@ v2 的 aarch64 二进制在 npm 上没有，只能 B 线从源码编——所以
 - 想给上游提修复：把 `mallopt(...TAGGING_LEVEL_NONE)` 塞进他们的
   `libopencode-crhandler.so`（那个 shim 已经在做 SIGSYS 的同类活儿），
   之后 wrapper 和 `libnoheap.so` 都能删掉。
+
+## License
+
+本项目自己的代码（`src/noheap.c` + `scripts/` + `Makefile`）为 MIT，见 `LICENSE`。
+打包进去的 opencode 二进制仍归上游（MIT）。
