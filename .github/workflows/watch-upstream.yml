@@ -64,7 +64,13 @@ jobs:
           set -euo pipefail
           ours=$(gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName' || true)
           echo "$ours" | sed 's/^/  已有: /'
-          if grep -qE "^v${VER}\+termux[0-9]+$" <<<"$ours"; then
+          # 只跟"比我们已发的更新"的版本（上游 v1 维护线比 v2 小，避免误跟进）
+          latest_ours=$(grep -oE '^v[0-9]+\.[0-9]+\.[0-9]+\+termux[0-9]+$' <<<"$ours" \
+            | sed -E 's/^v([0-9.]+)\+termux[0-9]+$/\1/' | sort -V | tail -1 || true)
+          if [ -n "$latest_ours" ] && [ "$(printf '%s\n%s\n' "$latest_ours" "$VER" | sort -V | tail -1)" != "$VER" ]; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "上游 $VER 不高于我们已发的 $latest_ours，跳过"
+          elif grep -qE "^v${VER}\+termux[0-9]+$" <<<"$ours"; then
             echo "new=false" >> "$GITHUB_OUTPUT"
             echo "已经发过 $VER，跳过"
           else
