@@ -1,0 +1,110 @@
+name: build-deb-source
+
+# 纯源码线出包：上游一发版，我们自己编 opencode + libopentui + bun-pty，然后打 deb。
+# 不依赖任何第三方 Termux 打包产物。
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '上游 opencode 版本（如 2.2.5，对应 tag v2.2.5）'
+        required: true
+        default: '2.2.5'
+      rev:
+        description: '本项目修订号（termux<N>）'
+        required: true
+        default: '1'
+      publish:
+        description: '构建后创建 release'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+
+env:
+  NDK_VERSION: 'r27c'
+  ZIG_VERSION: '0.17.0'
+  BUN_RELEASE: 'bun-v1.4.4'
+  API: '30'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchains (bun / zig / NDK / rust)
+        run: |
+          set -euo pipefail
+          curl -sSL -o bun.zip "https://github.com/oven-sh/bun/releases/download/${BUN_RELEASE}/bun-linux-x64.zip"
+          unzip -q bun.zip && echo "$PWD/bun-linux-x64" >> "$GITHUB_PATH"
+          curl -sSL -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
+          tar -xf zig.tar.xz && echo "$PWD/zig-x86_64-linux-${ZIG_VERSION}" >> "$GITHUB_PATH"
+          curl -sSL -o ndk.zip "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip"
+          unzip -q ndk.zip && echo "NDK_ROOT=$PWD/android-ndk-${NDK_VERSION}" >> "$GITHUB_ENV"
+          rustup toolchain install stable --profile minimal
+          rustup target add aarch64-linux-android
+          export PATH="$PWD/bun-linux-x64:$PWD/zig-x86_64-linux-${ZIG_VERSION}:$PATH"
+          bun --version; zig version; rustc --version
+
+      - name: Build deb from source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          export PATH="$PWD/bun-linux-x64:$PWD/zig-x86_64-linux-${ZIG_VERSION}:$PATH"
+          bash scripts/build-source-deb.sh '${{ inputs.version }}' '${{ inputs.rev }}'
+
+      - name: Summary
+        run: |
+          {
+            echo "### 源码线出包"
+            echo ""
+            echo '```'
+            ls -la dist/
+            cat dist/*.sha256
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opencode-source-${{ inputs.version }}+termux${{ inputs.rev }}
+          path: |
+            dist/*.deb
+            dist/*.sha256
+          retention-days: 30
+
+      - name: Publish release
+        if: inputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          REV: ${{ inputs.rev }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}+termux${REV}"
+          cat > notes.md <<EOF
+          Termux/aarch64 的 opencode **${VERSION}**，**全部从源码编译**（bionic）。
+
+          - opencode 本体：官方 Android Bun (\`${BUN_RELEASE}\`) + \`--target=bun-linux-aarch64-android\`
+          - \`libopentui.so\`：zig 编核心 + NDK clang++ 编 yoga，静态链 libc++
+          - \`librust_pty.so\`：cargo + NDK clang 交叉编（bun-pty）
+          - \`libnoheap.so\`：关 bionic 堆 tagging（Android 11+ TUI 必需）
+
+          不依赖任何第三方 Termux 打包产物。
+
+          ## 安装
+
+          \`\`\`sh
+          curl -LO https://github.com/${{ github.repository }}/releases/download/${TAG}/opencode_${VERSION}+termux${REV}_aarch64.deb
+          dpkg -i opencode_${VERSION}+termux${REV}_aarch64.deb
+          opencode --version
+          \`\`\`
+          EOF
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.deb dist/*.sha256 --clobber
+          else
+            gh release create "$TAG" dist/*.deb dist/*.sha256 \
+              --title "opencode ${VERSION}+termux${REV} (源码构建)" \
+              --notes-file notes.md
+          fi
