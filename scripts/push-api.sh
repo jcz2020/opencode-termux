@@ -25,7 +25,9 @@ echo "    待推提交    = ${#commits[@]}"
 echo "==> 上传所需 blobs"
 declare -A seen=()
 for c in "${commits[@]}"; do
-  while IFS=$'\t' read -r mode type obj path; do
+  while IFS=$'\t' read -r meta path; do
+    # meta = "<mode> blob <sha>"
+    read -r mode type obj <<<"$meta"
     [ "$type" = "blob" ] || continue
     [ -n "${seen[$obj]:-}" ] && continue
     seen[$obj]="$(gh api "repos/$REPO/git/blobs" \
@@ -39,7 +41,8 @@ echo "==> 逐个重放 commit"
 parent="$remote_head"
 for c in "${commits[@]}"; do
   entries="[]"
-  while IFS=$'\t' read -r mode type obj path; do
+  while IFS=$'\t' read -r meta path; do
+    read -r mode type obj <<<"$meta"
     [ "$type" = "blob" ] || continue
     entries="$(jq -c --arg p "$path" --arg s "${seen[$obj]}" --arg m "$mode" \
       '. + [{path:$p, mode:$m, type:"blob", sha:$s}]' <<<"$entries")"
