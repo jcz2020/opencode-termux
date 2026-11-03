@@ -47,7 +47,7 @@ jobs:
             # 注意：releases/latest 指向 v1 维护线（1.19.5），我们要 v2 主线，
             # 所以拉一批 release 自己比 semver。
             ver=$(gh api "repos/$UPSTREAM/releases?per_page=100" --jq '[.[].tag_name]
-              | map(select(test("^v[0-9]+\.[0-9]+\.[0-9]+$")))
+              | map(select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")))
               | map(ltrimstr("v")) | sort_by(split(".") | map(tonumber)) | last')
             src="upstream";
           fi
