@@ -79,9 +79,19 @@ PY
 
 echo "==> 2/3 补丁 node_modules/@opentui/core（允许 android 资产目标）"
 python3 - <<'PY'
-import pathlib
-root = pathlib.Path("node_modules/@opentui/core")
-files = [p for p in root.rglob("*.js") if "NATIVE_FILE_NAMES" in p.read_text(errors="ignore")]
+import os, pathlib
+# bun 1.4 的 isolated 布局把包放在隐藏目录 node_modules/.bun/... 下，glob 抓不到
+roots = []
+for dirpath, dirnames, _ in os.walk("."):
+    if dirpath.endswith(os.path.join("node_modules", "@opentui", "core")):
+        roots.append(pathlib.Path(dirpath))
+        dirnames[:] = []
+        continue
+    dirnames[:] = [d for d in dirnames if d not in (".git", "dist", "build", ".turbo")]
+if not roots:
+    raise SystemExit("找不到 @opentui/core（bun install 没装 / 布局变了）")
+print("   roots:", *roots)
+files = [q for root in roots for q in root.rglob("*.js") if "NATIVE_FILE_NAMES" in q.read_text(errors="ignore")]
 if not files:
     raise SystemExit("找不到 NATIVE_FILE_NAMES（@opentui/core 结构变了？）")
 for p in files:
