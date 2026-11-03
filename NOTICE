@@ -1,0 +1,15 @@
+# NOTICE
+
+本仓库自己的代码（`src/noheap.c`、`scripts/`、`Makefile`）为 MIT，见 `LICENSE`。
+
+`make fetch` 下载、并由生成的 `.deb` 分发的二进制**不是本项目的产物**，其版权归上游，
+各自以 MIT 授权：
+
+- **opencode** — https://github.com/anomalyco/opencode （MIT）
+- **Hope2333/opencode-termux**（幽零小喵）— https://github.com/Hope2333/opencode-termux （MIT）
+  - 本项目从它的 release 资产取件，并复用其 `libopencode-crhandler.so`
+    （SIGSYS→ENOSYS / close_range seccomp shim）
+- **Hope2333/bun-termux-loader** — https://github.com/Hope2333/bun-termux-loader
+  （上游 Wrapper 线的 ELF 手术工具；本仓库不直接包含其代码）
+
+仓库本身不包含任何上游二进制（`cache/`、`dist/` 均在 `.gitignore` 中）。
