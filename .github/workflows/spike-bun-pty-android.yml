@@ -51,6 +51,30 @@ jobs:
           mkdir -p bp && tar -xf bp.tar.gz -C bp --strip-components=1
           ls bp/rust-pty
 
+      - name: Vendor deps + patch termios for android
+        run: |
+          set -euo pipefail
+          cd bp/rust-pty
+          mkdir -p .cargo
+          cargo vendor vendor > .cargo/config.toml
+          echo "--- vendored config"; cat .cargo/config.toml
+          # termios 0.2.2 只 cfg linux/macos/*bsd，android 会 28 个错误；
+          # bionic 的 termios 与 linux 一致，直接复用它。
+          T=vendor/termios/src/os/mod.rs
+          python3 - "$T" <<'PY'
+          import pathlib, sys
+          p = pathlib.Path(sys.argv[1]); s = p.read_text()
+          if 'target_os = "android"' in s:
+              print("already patched"); sys.exit(0)
+          s = s.replace('#[cfg(target_os = "linux")] pub use self::linux as target;',
+                        '#[cfg(any(target_os = "linux", target_os = "android"))] pub use self::linux as target;')
+          s = s.replace('#[cfg(target_os = "linux")] pub mod linux;',
+                        '#[cfg(any(target_os = "linux", target_os = "android"))] pub mod linux;')
+          p.write_text(s)
+          print("patched", sys.argv[1])
+          PY
+          git -C . diff --stat 2>/dev/null || true
+
       - name: Build librust_pty for aarch64-linux-android
         env:
           API: ${{ inputs.api }}
