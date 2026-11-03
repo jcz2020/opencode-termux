@@ -61,6 +61,9 @@ fn addAndroidSysrootModule(b: *std.Build, module: *std.Build.Module, target: std
     module.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ sys, "usr/include" }) });
     module.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ sys, "usr/include/aarch64-linux-android" }) });
     module.addCMacro("__ANDROID_API__", "30");
+    // zig 会自己给库路径前缀 --sysroot，所以这里写 sysroot 相对路径
+    const libdir = b.fmt("/usr/lib/aarch64-linux-android/{d}", .{android_api});
+    module.addLibraryPath(.{ .cwd_relative = libdir });
 }
 '''
 
@@ -117,15 +120,16 @@ s = s.replace('var android_sysroot: ?[]const u8 = null;',
               'var android_sysroot: ?[]const u8 = null;\nvar android_cxx_external = false;')
 
 opt = '    android_sysroot = b.option([]const u8, "sysroot", "NDK sysroot for aarch64-linux-android");'
-s = s.replace(opt, opt + '\n    android_cxx_external = b.option(bool, "android-cxx-external", "C++ objects come from the NDK clang") orelse false;', 1)
+s = s.replace(opt, opt + '\n    android_cxx_external = b.option(bool, "android-cxx-external", "C++ objects come from the NDK clang") orelse false;
+    android_api = @intCast(b.option(u32, "android-api", "Android API level (default 30)") orelse 30);', 1)
 
 p.write_text(s)
 print("   patched build.zig")
 PY
 
 echo "==> 1/3 zig 编核心 → libopentui.a"
-zig build --sysroot "$SYSROOT" -Dsysroot="$SYSROOT" -Dandroid-cxx-external=true \
-  -Dlibrary-target="$TARGET" -Doptimize=ReleaseFast || true
+zig build --sysroot "$SYSROOT" -Dsysroot="$SYSROOT" -Dandroid-api="$API" \
+  -Dandroid-cxx-external=true -Dlibrary-target="$TARGET" -Doptimize=ReleaseFast || true
 A="$NATIVE/lib/$TARGET/libopentui.a"
 [ -f "$A" ] || { echo "ERROR: 没产出 $A" >&2; exit 1; }
 echo "    $A ($(stat -c%s "$A") bytes)"
