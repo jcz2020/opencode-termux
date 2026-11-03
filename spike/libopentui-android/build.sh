@@ -61,9 +61,8 @@ fn addAndroidSysrootModule(b: *std.Build, module: *std.Build.Module, target: std
     module.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ sys, "usr/include" }) });
     module.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ sys, "usr/include/aarch64-linux-android" }) });
     module.addCMacro("__ANDROID_API__", "30");
-    // zig 会自己给库路径前缀 --sysroot，所以这里写 sysroot 相对路径
-    const libdir = b.fmt("/usr/lib/aarch64-linux-android/{d}", .{android_api});
-    module.addLibraryPath(.{ .cwd_relative = libdir });
+    // 只产静态库：libc/libc++ 的链接交给 build.sh 里的 NDK clang++
+    module.link_libc = false;
 }
 '''
 
@@ -89,6 +88,22 @@ h = '''    const header = b.addTranslateC(.{
     });'''
 assert h in s
 s = s.replace(h, h + "\n    addAndroidSysrootIncludes(b, header, target);", 1)
+
+# android 不要 -ldl/-lpthread/-lm（由 NDK clang++ 链接）
+old_linux = '''        .linux => {
+            module.linkSystemLibrary("dl", .{});
+            module.linkSystemLibrary("pthread", .{});
+            module.linkSystemLibrary("m", .{});
+        },'''
+new_linux = '''        .linux => {
+            if (target.result.abi != .android) {
+                module.linkSystemLibrary("dl", .{});
+                module.linkSystemLibrary("pthread", .{});
+                module.linkSystemLibrary("m", .{});
+            }
+        },'''
+assert old_linux in s
+s = s.replace(old_linux, new_linux, 1)
 
 m = '    applyDependencies(b, module, optimize, target, build_options);'
 assert m in s
@@ -143,7 +158,7 @@ CXXFLAGS=(-target "aarch64-linux-android$API" -std=c++20 -fexceptions -frtti -fP
           -I zig-deps/yoga -I "$SYSROOT/usr/include" -I "$SYSROOT/usr/include/aarch64-linux-android")
 n=0
 for f in $(sed -n 's/^ *"\(yoga\/[^"]*\.cpp\)",$/\1/p' build.zig); do
-  "$CXX" "${CXXFLAGS[@]}" -c "zig-deps/$f" -o "$OBJ/$(echo "$f" | tr '/' '_').o"
+  "$CXX" "${CXXFLAGS[@]}" -c "zig-deps/yoga/$f" -o "$OBJ/$(echo "$f" | tr '/' '_').o"
   n=$((n+1))
 done
 "$CXX" "${CXXFLAGS[@]}" -c src/yoga-bridge.cpp -o "$OBJ/yoga-bridge.o"
