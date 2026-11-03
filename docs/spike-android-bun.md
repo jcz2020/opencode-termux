@@ -166,6 +166,48 @@ symbol call OK, handle = null
 2. `module.link_libc = false`：静态库阶段不链 libc，交给 NDK clang++。
 3. `-Dandroid-cxx-external=true`：跳过 build.zig 自己的 C++ 编译（yoga 交给 NDK clang++）。
 
+## 10. bun-pty（agent 跑命令 / 终端面板）也编出来了 ✅
+
+opencode 的 PTY 有两套，别混：
+
+| 用途 | 依赖 | android 处理 |
+|---|---|---|
+| agent 跑命令、TUI 终端面板（**核心**） | `bun-pty`（Rust cdylib，`bun:ffi` dlopen） | 自己交叉编（本节） |
+| 实验性"持久 shell 会话" | `@opencode/pty`（Rust 独立进程，glibc） | 跳过，功能关闭 |
+
+### 现状与坑
+
+- npm 包里只有 glibc/musl 的 `.so` → 设备上 dlopen 直接
+  `library "libc.so.6" not found`。
+- 好消息：`portable-pty` 用到的 `openpty` / `forkpty` / `posix_openpt` / `grantpt` /
+  `unlockpt` / `ptsname_r` **bionic 的 libc 全都有**（NDK stub 里可查到），
+  不需要像 libopentui 那样再写兼容层。
+- 唯一的坑：`portable-pty → serial → termios 0.2.2`，而 `termios` 只有
+  `linux/macos/*bsd` 的 cfg，android 会 28 个编译错误。
+  解法：`cargo vendor` + 给 `termios/src/os/mod.rs` 的两行加
+  `any(target_os = "linux", target_os = "android")`，
+  并清掉该 crate 的 per-file `cargo-checksum.json.files`（改过源码就必须重置，
+  否则 cargo 报 "checksum has changed"）。
+
+### 结果（CI run 41690247439）
+
+```
+librust_pty.so  498,688 bytes
+NEEDED: libc.so, libdl.so        ← 纯 bionic，无 glibc 依赖
+```
+
+设备侧实测（官方 android bun 1.4.4 + `BUN_PTY_LIB` 指定我们的库）：
+
+```
+$ bun ptyrun.ts
+HELLO-FROM-PTY
+/dev/pts/3            ← 真的拿到了伪终端
+[exit] {"exitCode":7}
+```
+
+关键便利：`bun-pty` 支持 **`BUN_PTY_LIB`** 环境变量指定库路径，
+所以不用改 npm 包，wrapper 里指一下就行。
+
 ## 8. 另一个发现：opentui 有官方逃生口
 
 `@opentui/core` 的 `resolveNativeLibraryPath()` 先看 **`OTUI_ASSET_ROOT`**：
