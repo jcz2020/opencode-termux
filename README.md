@@ -96,6 +96,9 @@ v2 的 aarch64 二进制在 npm 上没有，只能 B 线从源码编——所以
 
 - 本机 `github.com` 直连不可用；`api.github.com` / `objects.githubusercontent.com` /
   `registry.npmjs.org` 通。`fetch.sh` 因此走 release **asset API**（302 → 签名 URL）。
+- **`git push` 同样不通**（TLS RST）。推提交用 `scripts/push-api.sh`：
+  Git Data API 重放 blob/tree/commit，tree 与本地逐字节一致（脚本会断言），
+  但 commit SHA 因 GitHub 把时区归一化成 UTC 而必然不同。
 - 保守起见 `Depends: bash, clang`：wrapper 用 bash，`make deb` 现场编 shim 需要 clang。
 - 想给上游提修复：把 `mallopt(...TAGGING_LEVEL_NONE)` 塞进他们的
   `libopencode-crhandler.so`（那个 shim 已经在做 SIGSYS 的同类活儿），

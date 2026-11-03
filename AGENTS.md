@@ -26,8 +26,10 @@ opencode-termux/
 ├── scripts/build-deb.sh  解包 → 编 shim → 组装 rootfs → dpkg-deb
 ├── scripts/install.sh    dpkg -i（自动清理老的 dpkg-divert 手工安装）
 ├── scripts/smoke.sh      tmux 真 tty 起 TUI，断言主界面渲染 + 版本，崩了 FAIL
+├── scripts/push-api.sh   github.com 的 git push 不通时，用 REST API 推提交
 ├── cache/                上游包缓存（79 MB，gitignore）
-└── dist/                 产物 deb + .sha256（80 MB，gitignore）
+├── dist/                 产物 deb + .sha256（80 MB，gitignore）
+├── NOTICE                上游二进制归属（LICENSE 保持纯 MIT 以便 GitHub 识别）
 ```
 
 ## 包内布局（关键约束）
@@ -60,6 +62,12 @@ make clean                 # 清 build/ 与 dist/
 - `github.com` **不可用**；`api.github.com` / `objects.githubusercontent.com` /
   `registry.npmjs.org` 可用 → 下载一律走 **release asset API**（302 到签名 URL），
   不要拼 `releases/download/...` 直链。
+- **`git push` 也走不通**（github.com:443 TLS RST：
+  `error:0A000126:SSL routines::unexpected eof while reading`）。推送用
+  `scripts/push-api.sh`（Git Data API：blob → tree → commit → update ref）。
+  注意远端 commit SHA 与本地**不一致**（GitHub 把 author/committer 时区归一化成
+  UTC，commit 原始字节不同），但 tree 逐字节一致，脚本会断言这点；
+  推送进度记在 `.git/api-push-state`，不依赖本地有远端对象。
 - npm 的 `opencode-linux-arm64` 最高 **1.19.5**（v1 家族）；**v2 的 aarch64 二进制
   在 npm 上没有**，只能从源码编（上游 B 线）。
 
