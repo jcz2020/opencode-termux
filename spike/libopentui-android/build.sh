@@ -116,10 +116,13 @@ new = '''    module.addIncludePath(yoga_dep.path(""));
 assert old in s
 s = s.replace(old, new, 1)
 
+assert 'var android_sysroot: ?[]const u8 = null;' in s
 s = s.replace('var android_sysroot: ?[]const u8 = null;',
-              'var android_sysroot: ?[]const u8 = null;\nvar android_cxx_external = false;')
+              'var android_sysroot: ?[]const u8 = null;\nvar android_api: u32 = 30;\nvar android_cxx_external = false;', 1)
+assert 'var android_api: u32 = 30;' in s
 
 opt = '    android_sysroot = b.option([]const u8, "sysroot", "NDK sysroot for aarch64-linux-android");'
+assert opt in s
 s = s.replace(opt, opt + '\n    android_cxx_external = b.option(bool, "android-cxx-external", "C++ objects come from the NDK clang") orelse false;'
               + '\n    android_api = @intCast(b.option(u32, "android-api", "Android API level (default 30)") orelse 30);', 1)
 
