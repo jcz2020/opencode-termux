@@ -65,7 +65,8 @@ jobs:
           mkdir -p otui && tar -xf otui.tar.gz -C otui --strip-components=1
           curl -sSL -o bp.tar.gz "https://codeload.github.com/sursaone/bun-pty/tar.gz/refs/tags/v0.4.11"
           mkdir -p bp && tar -xf bp.tar.gz -C bp --strip-components=1
-          curl -sSL -o oc.tar.gz "https://api.github.com/repos/anomalyco/opencode/tarball/${ref}"
+          curl -sSL -o oc.tar.gz "https://codeload.github.com/anomalyco/opencode/tar.gz/${ref}"
+          ls -la oc.tar.gz; [ "$(stat -c%s oc.tar.gz)" -gt 1000000 ] || { echo "opencode tarball too small"; exit 1; }
           mkdir -p oc && tar -xf oc.tar.gz -C oc --strip-components=1
           cat oc/package.json | head -5
 
