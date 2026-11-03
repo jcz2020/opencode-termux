@@ -94,6 +94,32 @@ dlopen failed: cannot locate symbol "_ZTISt12out_of_range"
 写一个小 TU 提供这些 vtable/typeinfo/operator new。最容易出成果，但 vtable 布局
 靠自己声明，只在"这些异常真被抛出"时有风险。
 
+## 6b. A 线实测结果（2026-11-04，在设备上）
+
+做法：给 `addYogaDependencies` 加 `-nostdinc++ -isystem <ndk>/usr/include/c++/v1`，
+把 `link_libcpp` 关掉，改为链 NDK 的 `c++_static` / `c++abi`。
+
+- 编译命令行确认生效（日志里能看到 `-nostdinc++ -isystem .../c++/v1`，
+  并且 `-lc++_static` 出现在链接参数里）。
+- 但产物 `libopentui.a` 里的引用仍然落在 `std::__1`（`nm -u` 可见
+  `_ZTVNSt3__117bad_function_callE`），说明 **zig 仍把自带的 libc++ 头排在用户
+  flag 之前**，NDK 的 `__config_site`（定义 `_LIBCPP_ABI_NAMESPACE __ndk1`）没被采纳。
+- 尝试直接 `-D_LIBCPP_ABI_NAMESPACE=__ndk1` 覆盖：zig 的 libc++ 头会崩
+  （`math.h: FP_NAN / FP_INFINITE undeclared`），不可行。
+- 结论：**A 在"设备上用 Termux zig 编 C++"这个组合下走不通**，不是因为思路错，
+  而是 zig 的 libc++ 头与 NDK 的 libc++ ABI 不能在同一个编译单元里混。
+
+### A 的正确落地位置是 CI
+
+CI runner 是 x86_64，可以跑 **NDK 自带的 clang**（`aarch64-linux-android30-clang`），
+于是：
+
+- C/C++ 部分交给 NDK clang（天然是 `__ndk1`，链 `libc++_static.a` 自洽）；
+- Zig 部分交给 zig（`-Dlibrary-target=aarch64-linux-android.30`）；
+- 两者产出的 .o/.a 一起打包成 `libopentui.so`。
+
+在设备上做这件事的唯一障碍是"NDK 的 clang 是 x86_64 二进制，跑不起来"。
+
 ## 7. 复现用的本机落点
 
 - `~/tmp/buns/bun-linux-aarch64-android/bun`：官方 android bun（1.4.4）
