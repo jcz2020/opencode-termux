@@ -1,0 +1,71 @@
+name: spike-libopentui-android
+
+# 验证"不依赖上游打包"的源码线第一步：在 x86_64 runner 上用官方 NDK + zig 0.17.0
+# 把 opentui 编成 aarch64-linux-android 的 libopentui.so。
+# 设备上做不到（NDK 的 clang 是 x86_64 二进制），runner 上可以。
+
+on:
+  workflow_dispatch:
+    inputs:
+      opentui_ref:
+        description: 'opentui 分支/tag/commit'
+        required: true
+        default: 'main'
+      api:
+        description: 'Android API level'
+        required: true
+        default: '30'
+
+permissions:
+  contents: read
+
+env:
+  ZIG_VERSION: '0.17.0'
+  NDK_VERSION: 'r27c'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zig ${{ env.ZIG_VERSION }}
+        run: |
+          set -euo pipefail
+          url="https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
+          curl -sSL -o zig.tar.xz "$url"
+          tar -xf zig.tar.xz
+          echo "$PWD/zig-x86_64-linux-${ZIG_VERSION}" >> "$GITHUB_PATH"
+          ./zig-x86_64-linux-${ZIG_VERSION}/zig version
+
+      - name: Install NDK ${{ env.NDK_VERSION }}
+        run: |
+          set -euo pipefail
+          url="https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip"
+          curl -sSL -o ndk.zip "$url"
+          unzip -q ndk.zip
+          echo "NDK_ROOT=$PWD/android-ndk-${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Fetch opentui source
+        run: |
+          set -euo pipefail
+          ref='${{ inputs.opentui_ref }}'
+          curl -sSL -o otui.tar.gz "https://codeload.github.com/anomalyco/opentui/tar.gz/${ref}"
+          mkdir -p otui && tar -xf otui.tar.gz -C otui --strip-components=1
+          cat otui/.zig-version; echo
+
+      - name: Build libopentui.so (aarch64-linux-android)
+        env:
+          API: ${{ inputs.api }}
+        run: |
+          bash spike/libopentui-android/build.sh \
+            "$PWD/otui" \
+            "$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/sysroot" \
+            "$API"
+
+      - name: Upload libopentui.so
+        uses: actions/upload-artifact@v4
+        with:
+          name: libopentui-android-${{ inputs.api }}
+          path: otui/packages/native/lib/aarch64-linux-android.${{ inputs.api }}/*
+          retention-days: 14
