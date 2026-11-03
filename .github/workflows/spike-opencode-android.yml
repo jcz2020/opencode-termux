@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       opencode_ref:
-        description: 'opencode 分支/tag/commit'
+        description: 'opencode 分支/tag/commit（默认分支是 dev）'
         required: true
-        default: 'main'
+        default: 'dev'
       api:
         description: 'Android API level'
         required: true
