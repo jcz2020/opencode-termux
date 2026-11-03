@@ -208,6 +208,54 @@ HELLO-FROM-PTY
 关键便利：`bun-pty` 支持 **`BUN_PTY_LIB`** 环境变量指定库路径，
 所以不用改 npm 包，wrapper 里指一下就行。
 
+## 11. P3 跑通：opencode 本体自己编出来了 ✅✅
+
+CI run 41699776043 → success。产物：
+
+```
+oc/packages/cli/dist/cli-android-arm64/bin/opencode
+  ELF 64-bit LSB pie executable, ARM aarch64, interpreter /system/bin/linker64
+  210,837,880 bytes（未 strip，dev 分支带 debug_info）
+  --version → opencode v0.0.0-main-6
+```
+
+设备侧实测（三个自产件 + 现成的关 tagging shim，全在一条命令里）：
+
+```sh
+LD_PRELOAD=$PREFIX/lib/opencode/libnoheap.so \
+OTUI_ASSET_ROOT=$D/otui \
+BUN_PTY_LIB=$D/lib/librust_pty.so \
+$D/bin/opencode
+```
+
+**TUI 正常渲染**（opencode logo / Ask anything / 状态栏 0.0.0-main-6），
+无 `Pointer exceeds safe integer range`。
+
+### 需要的三处"运行时指向"
+
+| 变量 | 指向 | 为什么 |
+|---|---|---|
+| `OTUI_ASSET_ROOT` | `…/otui`，里面放 `@opentui/core-android-arm64/libopentui.so` | `@opentui/core` 按 `"@opentui/core-${platform}-${arch}/libopentui.so"` 这个 key 去 `$OTUI_ASSET_ROOT` 下找 |
+| `BUN_PTY_LIB` | `librust_pty.so` 绝对路径 | bun-pty 自己的覆盖入口 |
+| `LD_PRELOAD` | `libnoheap.so` | bionic 堆 tagging（本仓库的老朋友） |
+
+### 构建侧要打的补丁（都在 `spike/opencode-android/build.sh`）
+
+`packages/cli/script/build.ts` 四处：
+1. `allTargets` 加 `{ os: "android", arch: "arm64" }`
+2. bun 资产名：android 走 `platform=linux` + `abi=android`（→ `bun-linux-aarch64-android.zip`）
+3. `compileTarget()`：`bun-android-arm64` 不是合法 target，映射成 `bun-linux-aarch64-android`
+4. parcel watcher：android 没有预编译 binding → 降级成"不可用"的 stub
+
+`@opentui/core` 一处：`NATIVE_FILE_NAMES` 加 `android: "libopentui.so"`，
+否则它在 `getNativeAssetDescriptor` 就抛 "not supported on the current platform"。
+
+### 两个 CI 环境的坑（与代码无关）
+
+- opencode 默认分支是 **`dev`**，不是 `main`（codeload 取 `main` 会拿到 14 字节的 404）。
+- bun 1.4 是 **isolated 安装布局**：包在 `node_modules/.bun/@opentui+core@…/node_modules/@opentui/core`
+  （隐藏目录）→ 用 glob 找不到，得 `os.walk`。
+
 ## 8. 另一个发现：opentui 有官方逃生口
 
 `@opentui/core` 的 `resolveNativeLibraryPath()` 先看 **`OTUI_ASSET_ROOT`**：
