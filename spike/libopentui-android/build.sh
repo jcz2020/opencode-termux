@@ -17,6 +17,13 @@ TARGET="aarch64-linux-android.${API}"
 
 cd "$NATIVE"
 
+echo "==> NDK sysroot 补齐 libpthread/librt 软链（Android 已并入 libc）"
+LIBS="$SYSROOT/usr/lib/aarch64-linux-android/$API"
+for l in libpthread.so librt.so; do
+  [ -e "$LIBS/$l" ] || ln -sf libc.so "$LIBS/$l"
+done
+ls -la "$LIBS/libpthread.so" "$LIBS/librt.so" 2>/dev/null || true
+
 echo "==> zig $(zig version) / target $TARGET"
 zig version | grep -q '^0\.17\.0$' || { echo "ERROR: 需要 zig 0.17.0（opentui 的 .zig-version）" >&2; exit 1; }
 
@@ -60,6 +67,8 @@ fn addAndroidSysrootModule(b: *std.Build, module: *std.Build.Module, target: std
     module.addSystemIncludePath(.{ .cwd_relative = a.inc });
     module.addSystemIncludePath(.{ .cwd_relative = a.inc_arch });
     module.addCMacro("__ANDROID_API__", "30");
+    // zig 会给绝对库路径前缀 --sysroot，所以这里写 sysroot 相对路径
+    module.addLibraryPath(.{ .cwd_relative = "/usr/lib/aarch64-linux-android/30" });
 }
 '''
 
