@@ -41,6 +41,13 @@ import pathlib, sys
 root = pathlib.Path(sys.argv[1])
 p = root / "build.zig"
 s = p.read_text()
+
+# 有些 tag（如 opentui v0.8.1）还写着 zig 0.16 时代的 .ReleaseFast，
+# 而 zig 0.17 的 Optimize 只有 debug/safe/fast/small。
+for old, new in ((".ReleaseFast", ".fast"), (".ReleaseSafe", ".safe"), (".ReleaseSmall", ".small")):
+    if old in s:
+        s = s.replace(old, new)
+        print("   normalized", old, "->", new)
 if "spike patch: aarch64-linux-android" in s:
     print("   already patched"); sys.exit(0)
 
