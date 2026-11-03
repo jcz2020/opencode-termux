@@ -120,8 +120,8 @@ s = s.replace('var android_sysroot: ?[]const u8 = null;',
               'var android_sysroot: ?[]const u8 = null;\nvar android_cxx_external = false;')
 
 opt = '    android_sysroot = b.option([]const u8, "sysroot", "NDK sysroot for aarch64-linux-android");'
-s = s.replace(opt, opt + '\n    android_cxx_external = b.option(bool, "android-cxx-external", "C++ objects come from the NDK clang") orelse false;
-    android_api = @intCast(b.option(u32, "android-api", "Android API level (default 30)") orelse 30);', 1)
+s = s.replace(opt, opt + '\n    android_cxx_external = b.option(bool, "android-cxx-external", "C++ objects come from the NDK clang") orelse false;'
+              + '\n    android_api = @intCast(b.option(u32, "android-api", "Android API level (default 30)") orelse 30);', 1)
 
 p.write_text(s)
 print("   patched build.zig")
