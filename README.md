@@ -1,0 +1,78 @@
+# opencode-termux（自制适配线）
+
+自己的 Termux/aarch64 opencode 打包项目：**取上游 bionic 二进制 → 打自己的补丁 shim →
+出自己的 deb**。不编译 opencode、不编译 bun，分钟级出包，不跟上游发布节奏。
+
+已在本机跑通：`opencode v2.2.5`，`dpkg -l opencode` → `2.2.5+termux1`，
+TUI 冒烟通过（`make smoke`）。
+
+## 为什么需要这个项目
+
+Hope2333 的包在这台机器（Android 16 / API 36）上 TUI 起不来：
+
+```
+Error: Pointer exceeds safe integer range  at ... createContext ... Tui.run
+```
+
+根因是 bionic 堆指针 top-byte tagging（`malloc` 返回 `0xb4000077f0c1b6f0`），
+bun 的 FFI 把指针当 JS number 交给 libopentui，超过 `Number.MAX_SAFE_INTEGER`
+就抛错。**跟编译无关，是运行时问题**——2.1.4 和 2.2.5 都一样崩。
+
+修法 6 KB C：进程启动时 `mallopt(M_BIONIC_SET_HEAP_TAGGING_LEVEL,
+M_HEAP_TAGGING_LEVEL_NONE)`，之后 `malloc` 返回 `0x7d831e9b00`。
+见 `src/noheap.c`。
+
+## 安装形态（无 dpkg-divert）
+
+| 路径 | 内容 |
+|---|---|
+| `$PREFIX/bin/opencode` | wrapper：`LD_PRELOAD=libnoheap.so` 后 exec `.real` |
+| `$PREFIX/bin/opencode.real` | 上游真二进制。它 `RUNPATH=$ORIGIN/../lib/opencode`，所以必须留在 `bin/` |
+| `$PREFIX/lib/opencode/libopencode-crhandler.so` | 上游自带（`DT_NEEDED` 第一项，SIGSYS/close_range） |
+| `$PREFIX/lib/opencode/libnoheap.so` | 本项目加的 shim |
+
+包名沿用 `opencode`，版本 `上游版本+termux<N>` → `dpkg -i` 是升级不是冲突，
+所有文件都归 dpkg 管（`dpkg -S` 可查），`apt` 也不会再把它顶回上游旧版。
+
+## 用法
+
+```sh
+make fetch VERSION=2.2.5     # 取上游包进 cache/，按 .MTREE sha256 校验
+make deb   VERSION=2.2.5     # → dist/opencode_2.2.5+termux1_aarch64.deb
+make install                 # dpkg -i（自动清理老的 dpkg-divert 安装）
+make smoke                   # tmux 真 tty 起 TUI，断言主界面渲染 + 版本
+make clean
+```
+
+换版本只改 `VERSION`；`REV=2` 可以覆盖已发布的同版本。
+
+## 上游三种构建线（读 Makefile / produce-local.sh / build-bionic.sh 得到）
+
+| 线 | 做法 | 代价 |
+|---|---|---|
+| Wrapper | `npm pack opencode-linux-arm64@<ver>`（官方 glibc/musl 二进制）→ `bun-termux-loader` 做 ELF 手术（interp/动态段/bunfs shim） | 轻；但 TUI 要另配 bionic `libopentui.so`，缺了就 "tui:absent" |
+| Native（B 线） | `bun script/build.ts --target=opencode-linux-arm64` 用 **android bun 1.4.0** 从 opencode v2 源码编译 | 重：android bun（1.4.2 在 bionic 直接 segfault，钉 1.4.0）、zig 编的 bionic `libopentui.so`（含 TLSDESC shim）、`openat2_shim`、磁盘/内存闸门 |
+| Compressed | B 线 + UPX | 同上 |
+
+补充事实（今天实测）：npm 的 `opencode-linux-arm64` 最高 **1.19.5**（v1 家族），
+v2 的 aarch64 二进制在 npm 上没有，只能 B 线从源码编——所以本项目当下
+"I own 打包 + 补丁，不 own 二进制"。要完全独立就得把 B 线那套工具链搬过来：
+
+1. android bun 1.4.0（bun 源码交叉编译到 bionic，最重的一块）
+2. `zig` 交叉编 bionic `libopentui.so`（含 TLS descriptor shim + FFI 负坐标 guard）
+3. opencode v2 源码 + `--target=opencode-linux-arm64` 编译
+4. seccomp shim（`SIGSYS` → `ENOSYS`，我们已经知道它是干什么的）
+5. 打包（本项目这部分已经做完，直接复用）
+
+第 1、2 步是真正的门槛，不是"等上游"——是几周的活。第 3–5 步本项目已经就位，
+所以哪天拿到 android bun + bionic libopentui，改成源码线只是换 `scripts/build-deb.sh`
+里的取件步骤，包结构不用动。
+
+## 备注
+
+- 本机 `github.com` 直连不可用；`api.github.com` / `objects.githubusercontent.com` /
+  `registry.npmjs.org` 通。`fetch.sh` 因此走 release **asset API**（302 → 签名 URL）。
+- 保守起见 `Depends: bash, clang`：wrapper 用 bash，`make deb` 现场编 shim 需要 clang。
+- 想给上游提修复：把 `mallopt(...TAGGING_LEVEL_NONE)` 塞进他们的
+  `libopencode-crhandler.so`（那个 shim 已经在做 SIGSYS 的同类活儿），
+  之后 wrapper 和 `libnoheap.so` 都能删掉。
