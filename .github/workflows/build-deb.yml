@@ -1,0 +1,136 @@
+name: build-deb
+
+# tag 形如 v2.2.5+termux1 → VERSION=2.2.5 REV=1
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '上游 opencode 版本（如 2.2.5）'
+        required: true
+        default: '2.2.5'
+      rev:
+        description: '本项目的修订号（termux<N>）'
+        required: true
+        default: '1'
+
+permissions:
+  contents: write
+
+env:
+  NDK_VERSION: r27c
+  ANDROID_API: 24
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve VERSION / REV / TAG
+        id: v
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+            rev="${{ inputs.rev }}"
+            tag="v${version}+termux${rev}"
+          else
+            tag="${GITHUB_REF_NAME}"
+            core="${tag#v}"                     # 2.2.5+termux1
+            version="${core%%+*}"               # 2.2.5
+            rev="${core##*+termux}"             # 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "rev=$rev"         >> "$GITHUB_OUTPUT"
+          echo "tag=$tag"         >> "$GITHUB_OUTPUT"
+          echo "VERSION=$version REV=$rev TAG=$tag"
+
+      - name: Install NDK ${{ env.NDK_VERSION }}
+        uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: false
+
+      - name: Toolchain sanity
+        run: |
+          set -euo pipefail
+          CC_SO="${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${ANDROID_API}-clang"
+          [ -x "$CC_SO" ] || { echo "missing $CC_SO"; ls "${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/"; exit 1; }
+          echo "CC=$CC_SO" >> "$GITHUB_ENV"
+          "$CC_SO" --version | head -1
+          dpkg-deb --version | head -1
+
+      - name: Fetch upstream package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: make fetch VERSION='${{ steps.v.outputs.version }}'
+
+      - name: Build deb
+        run: |
+          set -euo pipefail
+          REV='${{ steps.v.outputs.rev }}' make deb VERSION='${{ steps.v.outputs.version }}'
+          ls -la dist/
+
+      - name: Verify package
+        run: |
+          set -euo pipefail
+          deb="$(ls dist/opencode_*_aarch64.deb)"
+          dpkg-deb -I "$deb" | sed -n '1,14p'
+          echo "--- payload"
+          dpkg-deb -c "$deb"
+          echo "--- shim 必须是 aarch64 / bionic"
+          mkdir -p /tmp/x && dpkg-deb -x "$deb" /tmp/x
+          file /tmp/x/data/data/com.termux/files/usr/lib/opencode/libnoheap.so
+          file /tmp/x/data/data/com.termux/files/usr/bin/opencode.real
+          sha256sum "$deb" | tee "$deb.sha256"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencode_${{ steps.v.outputs.version }}+termux${{ steps.v.outputs.rev }}
+          path: |
+            dist/*.deb
+            dist/*.sha256
+          retention-days: 30
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.v.outputs.version }}
+          REV: ${{ steps.v.outputs.rev }}
+          TAG: ${{ steps.v.outputs.tag }}
+        run: |
+          set -euo pipefail
+          cat > notes.md <<EOF
+          Termux/aarch64 的 opencode **${VERSION}** 重打包，带关堆 tagging shim。
+
+          - 修 Android 11+（含 Android 16 / API 36）TUI 崩溃：
+            \`Error: Pointer exceeds safe integer range\`
+          - 包内布局：\`bin/opencode\`（wrapper）→ \`bin/opencode.real\`；
+            shim 在 \`lib/opencode/\`
+          - 二进制取自上游构建，来源与授权见仓库 \`NOTICE\`
+
+          ## 安装
+
+          \`\`\`sh
+          pkg install -y xz-utils
+          curl -LO https://github.com/${{ github.repository }}/releases/download/${TAG}/opencode_${VERSION}+termux${REV}_aarch64.deb
+          dpkg -i opencode_${VERSION}+termux${REV}_aarch64.deb
+          opencode --version
+          \`\`\`
+
+          没有 TUI 就说明 shim 没加载（\`dpkg -S \$PREFIX/lib/opencode/libnoheap.so\`）。
+          EOF
+          # 已存在就补传，避免重跑失败
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.deb dist/*.sha256 --clobber
+          else
+            gh release create "$TAG" dist/*.deb dist/*.sha256 \
+              --title "opencode ${VERSION}+termux${REV}" \
+              --notes-file notes.md
+          fi

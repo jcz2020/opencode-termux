@@ -22,13 +22,17 @@ mkdir -p "$CACHE"
 
 if [ ! -f "$PKG" ]; then
   echo "==> 查找资产 $ASSET (repo=$REPO)"
-  asset_id="$(curl -sS --max-time 30 \
+  meta_auth=()
+  [ -n "${GH_TOKEN:-${GITHUB_TOKEN:-}}" ] && meta_auth=(-H "Authorization: token ${GH_TOKEN:-$GITHUB_TOKEN}")
+  asset_id="$(curl -sS --max-time 30 "${meta_auth[@]}" \
       "https://api.github.com/repos/$REPO/releases?per_page=10" \
     | jq -r --arg n "$ASSET" \
       '[.[].assets[] | select(.name == $n)] | first | .id // empty')"
   [ -n "$asset_id" ] || { echo "ERROR: 最近 10 个 release 里没有 $ASSET" >&2; exit 1; }
   echo "==> 下载 asset id=$asset_id"
-  curl -sSL --max-time 900 -H 'Accept: application/octet-stream' \
+  auth=()
+  [ -n "${GH_TOKEN:-${GITHUB_TOKEN:-}}" ] && auth=(-H "Authorization: token ${GH_TOKEN:-$GITHUB_TOKEN}")
+  curl -sSL --max-time 900 -H 'Accept: application/octet-stream' "${auth[@]}" \
     -o "$PKG.part" "https://api.github.com/repos/$REPO/releases/assets/$asset_id"
   mv "$PKG.part" "$PKG"
 fi

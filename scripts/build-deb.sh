@@ -32,8 +32,12 @@ tar -xf "$PKG" -C "$ROOT/build/src" 2>/dev/null || { mkdir -p "$ROOT/build/src";
 UP="$ROOT/build/src/$PREFIX_DIR"
 
 echo "==> 编译 libnoheap.so"
+# CC 可覆盖：本机用 Termux clang；CI 里用 NDK 的 aarch64-linux-android<api>-clang。
+CC="${CC:-clang}"
+command -v "$CC" >/dev/null || { echo "ERROR: 找不到编译器 $CC" >&2; exit 1; }
+echo "    CC=$CC"
 mkdir -p "$ROOT/build/shim"
-clang -shared -fPIC -O2 -o "$ROOT/build/shim/libnoheap.so" "$ROOT/src/noheap.c"
+"$CC" -shared -fPIC -O2 -o "$ROOT/build/shim/libnoheap.so" "$ROOT/src/noheap.c"
 
 echo "==> 组装 rootfs"
 mkdir -p "$BUILD/$PREFIX_DIR/bin" "$BUILD/$PREFIX_DIR/lib/opencode" "$BUILD/DEBIAN"
