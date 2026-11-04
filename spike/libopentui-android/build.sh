@@ -35,6 +35,7 @@ for l in libpthread.so librt.so; do [ -e "$LIBS/$l" ] || ln -sf libc.so "$LIBS/$
 echo "==> 解 vendor 依赖（yoga/ghostty/uucode，无网络）"
 sh scripts/prepare-zig-deps.sh
 
+export ZIG_MM="$(zig version | cut -d. -f1-2)"
 echo "==> 打 build.zig 补丁：android 下 C++ 交给 NDK clang"
 python3 - "$PWD" <<'PY'
 import pathlib, sys
@@ -42,13 +43,23 @@ root = pathlib.Path(sys.argv[1])
 p = root / "build.zig"
 s = p.read_text()
 
-# 有些 tag（如 opentui v0.8.1）还写着 zig 0.16 时代的 .ReleaseFast，
-# 而 zig 0.17 的 Optimize 只有 debug/safe/fast/small。
-for old, new in ((".ReleaseFast", ".fast"), (".ReleaseSafe", ".safe"), (".ReleaseSmall", ".small"),
-                 (".Debug", ".debug")):
-    if old in s:
-        s = s.replace(old, new)
-        print("   normalized", old, "->", new)
+# zig 0.17 把 Optimize 的成员从 ReleaseFast/ReleaseSafe/ReleaseSmall/Debug
+# 改成了 fast/safe/small/debug。只有 0.17+ 才需要归一化。
+import os
+zigmm = os.environ.get("ZIG_MM", "")
+use_new = False
+if zigmm:
+    try:
+        major, minor = (int(x) for x in zigmm.split(".")[:2])
+        use_new = (major, minor) >= (0, 17)
+    except ValueError:
+        use_new = False
+if use_new:
+    for old, new in ((".ReleaseFast", ".fast"), (".ReleaseSafe", ".safe"),
+                     (".ReleaseSmall", ".small"), (".Debug", ".debug")):
+        if old in s:
+            s = s.replace(old, new)
+            print("   normalized", old, "->", new)
 if "spike patch: aarch64-linux-android" in s:
     print("   already patched"); sys.exit(0)
 
