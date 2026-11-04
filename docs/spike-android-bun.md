@@ -256,6 +256,38 @@ $D/bin/opencode
 - bun 1.4 是 **isolated 安装布局**：包在 `node_modules/.bun/@opentui+core@…/node_modules/@opentui/core`
   （隐藏目录）→ 用 glob 找不到，得 `os.walk`。
 
+## 12. P4 完成：整条线产品化 ✅
+
+一条命令从上游源码出 deb：
+
+```sh
+NDK_ROOT=/path/to/ndk bash scripts/build-source-deb.sh 2.2.5 2   # → dist/opencode_2.2.5+termux2_aarch64.deb
+```
+
+CI：`.github/workflows/build-deb-source.yml`（dispatch: version/rev/publish）。
+产物已发布：`v2.2.5+termux2`（68 MB），设备实测 `opencode v2.2.5` + TUI 正常。
+
+### 版本对齐是这里唯一真正的坑
+
+- opencode 2.2.5 的 catalog 钉 `@opentui/core 0.8.0`，而 0.8.0/0.8.1 的
+  `build.zig` 还在用 zig 0.16 的 API（`b.args` / `b.build_root`，0.17 已删），
+  用 zig 0.17 根本编不动；换 zig 0.16 又会在 translate-c NDK r27 头文件时挂
+  （`nullability specifier cannot be applied to ...`）。
+- 结论：原生库与 JS **必须同版本**，否则 FFI 结构体不匹配 →
+  `ot_session_get_renderer_state failed: InvalidArgument`（这个错我踩过）。
+- 做法：原生库编 0.8.2（zig 0.17 可编），同时把 opencode catalog 里所有
+  `@opentui/*` 用 jq 提到 0.8.2。实测 TUI 正常。
+
+### 仓库现在有两条线
+
+| 线 | 入口 | 依赖 |
+|---|---|---|
+| mirror 重打包 | `build-deb.yml`（tag 触发） | 上游 bionic 二进制 |
+| **源码构建** | `build-deb-source.yml` | 只有：官方 android bun + NDK + zig + rust |
+
+`watch-upstream` 现在直接 dispatch **源码线**（publish=true），
+上游发版 → 自动出包 + 发 release，完全不碰第三方打包产物。
+
 ## 8. 另一个发现：opentui 有官方逃生口
 
 `@opentui/core` 的 `resolveNativeLibraryPath()` 先看 **`OTUI_ASSET_ROOT`**：

@@ -37,6 +37,16 @@ M_HEAP_TAGGING_LEVEL_NONE)`，之后 `malloc` 返回 `0x7d831e9b00`。
 包名沿用 `opencode`，版本 `上游版本+termux<N>` → `dpkg -i` 是升级不是冲突，
 所有文件都归 dpkg 管（`dpkg -S` 可查），`apt` 也不会再把它顶回上游旧版。
 
+## 两种出包方式
+
+| 方式 | 命令 / 入口 | 依赖 |
+|---|---|---|
+| 源码构建（推荐） | `scripts/build-source-deb.sh <ver> [rev]`，CI 是 `build-deb-source` | 只有官方 android bun + NDK + zig + rust |
+| 二进制重打包 | `make deb`，CI 是 `build-deb` | 上游/第三方的 bionic 二进制 |
+
+`watch-upstream` 每 6 小时看上游 release，一有新版本就 dispatch **源码构建**并发布。
+详见 `docs/spike-android-bun.md`。
+
 ## 安装（直接装 release）
 
 CI 在 tag 上自动出包并发布：
