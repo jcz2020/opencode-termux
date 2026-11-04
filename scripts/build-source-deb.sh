@@ -100,11 +100,23 @@ echo "==> [3/4] libnoheap.so"
   -o "$WORK/libnoheap.so" "$ROOT/src/noheap.c"
 
 echo "==> [4/4] opencode（官方 android bun 编译）"
-( cd oc && [ -d node_modules ] || bun install --frozen-lockfile || bun install )
+if [ "$BUMP_OTUI" = "1" ]; then
+  # catalog 改了，bun.lock 的 hash 对不上 → 重装并让 bun 更新 lockfile
+  ( cd oc && rm -f bun.lock && bun install )
+else
+  ( cd oc && [ -d node_modules ] || bun install --frozen-lockfile || bun install )
+fi
 OPENCODE_VERSION="$VER" bash "$ROOT/spike/opencode-android/build.sh" \
   "$WORK/oc" "$LIBOTUI" "$LIBPTY" "$BUN_RELEASE" | tail -6
 BIN="$WORK/oc/packages/cli/dist/cli-android-arm64/bin/opencode"
 [ -f "$BIN" ] || { echo "ERROR: 没有 $BIN" >&2; exit 1; }
+
+echo "==> ABI 校验（JS 与原生库符号必须对齐）"
+CORE_DIR=$(find "$WORK/oc" -type d -path '*/node_modules/@opentui/core' | head -1)
+PTY_DIR=$(find "$WORK/oc" -type d -path '*/node_modules/bun-pty' | head -1)
+[ -n "$CORE_DIR" ] || { echo "ERROR: 找不到 @opentui/core" >&2; exit 1; }
+[ -n "$PTY_DIR" ] || { echo "ERROR: 找不到 bun-pty" >&2; exit 1; }
+bash "$ROOT/scripts/verify-abi.sh" "$LIBOTUI" "$LIBPTY" "$CORE_DIR" "$PTY_DIR"
 
 echo "==> strip（二进制 200MB+ → 体积能砍一大截）"
 cp "$BIN" "$WORK/opencode.stripped"
