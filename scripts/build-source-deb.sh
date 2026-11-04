@@ -48,6 +48,13 @@ OTUI_VER=$(python3 -c "
 import json;d=json.load(open('oc/package.json'))
 c=(d.get('workspaces') or {}).get('catalog') or {}
 print(c.get('@opentui/core','0.8.1'))")
+# opencode 可能钉 0.8.0/0.8.1，但那两个 tag 的 build.zig 还在用 zig 0.16 的 API
+# （b.args / b.build_root，0.17 已删除）。0.8.2 起才迁到 0.17，所以最低钉 0.8.2。
+# 公开 FFI（opentui.h）在 0.8.x 内是兼容的，编完在设备上跑一遍 TUI 即可验证。
+OTUI_VER="${OTUI_VER_OVERRIDE:-$OTUI_VER}"
+case "$OTUI_VER" in
+  0.8.0|0.8.1) echo "   note: 把 opentui 从 $OTUI_VER 提到 0.8.2（zig 0.17 兼容）"; OTUI_VER=0.8.2 ;;
+esac
 PTY_VER=$(python3 -c "
 import json;d=json.load(open('oc/packages/core/package.json'))
 print(d.get('dependencies',{}).get('bun-pty','0.4.11'))")

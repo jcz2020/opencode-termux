@@ -23,8 +23,7 @@ permissions:
 
 env:
   NDK_VERSION: 'r27c'
-  # opentui v0.8.1 的 build.zig 还用 0.16 的 API（b.args/b.build_root），所以钉 0.16.0
-  ZIG_VERSION: '0.16.0'
+  ZIG_VERSION: '0.17.0'
   BUN_RELEASE: 'bun-v1.4.4'
   API: '30'
 
