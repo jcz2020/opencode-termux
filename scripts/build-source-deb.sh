@@ -52,9 +52,19 @@ print(c.get('@opentui/core','0.8.1'))")
 # （b.args / b.build_root，0.17 已删除）。0.8.2 起才迁到 0.17，所以最低钉 0.8.2。
 # 公开 FFI（opentui.h）在 0.8.x 内是兼容的，编完在设备上跑一遍 TUI 即可验证。
 OTUI_VER="${OTUI_VER_OVERRIDE:-$OTUI_VER}"
+BUMP_OTUI=0
 case "$OTUI_VER" in
-  0.8.0|0.8.1) echo "   note: 把 opentui 从 $OTUI_VER 提到 0.8.2（zig 0.17 兼容）"; OTUI_VER=0.8.2 ;;
+  0.8.0|0.8.1)
+    echo "   note: opentui 从 $OTUI_VER 提到 0.8.2（zig 0.17 兼容；原生库与 JS 必须同版本，否则 FFI 结构体不匹配）"
+    OTUI_VER=0.8.2; BUMP_OTUI=1 ;;
 esac
+
+if [ "$BUMP_OTUI" = "1" ]; then
+  echo "==> 同步 opencode catalog 里的 @opentui/* -> $OTUI_VER"
+  _tmp=$(mktemp)
+  jq --arg v "$OTUI_VER" '.workspaces.catalog |= with_entries(if (.key|startswith("@opentui/")) then .value=$v else . end)' \
+    oc/package.json > "$_tmp" && mv "$_tmp" oc/package.json
+fi
 PTY_VER=$(python3 -c "
 import json;d=json.load(open('oc/packages/core/package.json'))
 print(d.get('dependencies',{}).get('bun-pty','0.4.11'))")
