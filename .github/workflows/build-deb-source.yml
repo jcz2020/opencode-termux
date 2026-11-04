@@ -55,6 +55,14 @@ jobs:
           export PATH="$PWD/bun-linux-x64:$PWD/zig-x86_64-linux-${ZIG_VERSION}:$PATH"
           bash scripts/build-source-deb.sh '${{ inputs.version }}' '${{ inputs.rev }}'
 
+      - name: Static smoke (no device needed)
+        run: |
+          set -euo pipefail
+          deb="$(ls dist/*.deb)"
+          CORE=$(find build -type d -path '*/node_modules/@opentui/core' | head -1)
+          PTY=$(find build -type d -path '*/node_modules/bun-pty' | head -1)
+          bash scripts/smoke-static.sh "$deb" "$CORE" "$PTY"
+
       - name: Summary
         run: |
           {
