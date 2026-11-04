@@ -113,7 +113,8 @@ install -m 755 "$WORK/opencode.stripped" "$BUILD/$PREFIX_DIR/bin/opencode.real"
 install -m 755 "$WORK/libnoheap.so"      "$BUILD/$PREFIX_DIR/lib/opencode/libnoheap.so"
 install -m 755 "$LIBPTY"                 "$BUILD/$PREFIX_DIR/lib/opencode/librust_pty.so"
 install -m 644 "$LIBOTUI"                "$BUILD/$PREFIX_DIR/lib/opencode/otui/@opentui/core-android-arm64/libopentui.so"
-install -m 644 "$OTUI/include/opentui.h" "$BUILD/$PREFIX_DIR/lib/opencode/otui/@opentui/core-android-arm64/opentui.h" 2>/dev/null || true
+install -m 644 "$WORK/otui/packages/native/include/opentui.h" \
+  "$BUILD/$PREFIX_DIR/lib/opencode/otui/@opentui/core-android-arm64/opentui.h" 2>/dev/null || true
 
 cat > "$BUILD/$PREFIX_DIR/bin/opencode" <<'WRAP'
 #!/data/data/com.termux/files/usr/bin/bash
