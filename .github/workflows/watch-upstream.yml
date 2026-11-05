@@ -1,7 +1,7 @@
 name: watch-upstream
 
 # 盯上游 opencode 的 release（tag 形如 v2.2.6），一有新版本就自动跟进：
-#   1) Hope2333 的 bionic 资产已出 → 建 tag（v<ver>+termux<N>），触发 build-deb 出包并发布
+#   1) Hope2333 的 bionic 资产已出 → 建 tag（v<ver>+termux<N>），触发 build-deb 打包并发布
 #   2) 还没有 → 开 issue + 触发源码线 spike 编译（先把产物备好）
 #
 # 状态判断全部基于"我们自己的 release tag"，所以重复跑是幂等的。

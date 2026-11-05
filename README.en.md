@@ -47,9 +47,9 @@ This project fixes it, and **depends on no third-party Termux packaging**:
 ### One-liner
 
 ```sh
-pkg install -y xz-utils curl
-curl -LO "https://github.com/jcz2020/opencode-termux/releases/download/v2.2.5+termux1/opencode_2.2.5+termux1_aarch64.deb"
-dpkg -i opencode_2.2.5+termux1_aarch64.deb
+pkg install -y curl
+curl -LO "https://github.com/jcz2020/opencode-termux/releases/download/v2.2.5+termux2/opencode_2.2.5+termux2_aarch64.deb"
+dpkg -i opencode_2.2.5+termux2_aarch64.deb
 ```
 
 ### If `github.com` is unreachable
@@ -58,7 +58,7 @@ dpkg -i opencode_2.2.5+termux1_aarch64.deb
 asset API:
 
 ```sh
-id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.5+termux1" \
+id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.5+termux2" \
      | jq -r '.assets[] | select(.name|endswith(".deb")) | .id')
 # -C - resumes a partial download; just re-run the same line if the network drops
 curl -sSL -C - -H 'Accept: application/octet-stream' -o opencode.deb \
@@ -104,8 +104,9 @@ must be the same version. Reinstall the latest release.
 A: the free model quota for the day is used up. Not a bug.
 
 **Q: What is `oc`?**
-A: a shortcut. If you installed via the old `install-opencode.sh` you already have
-it; otherwise `ln -s $PREFIX/bin/opencode $PREFIX/bin/oc`.
+A: a shortcut for `opencode`. The package doesn't ship it — if you installed via the
+old `install-opencode.sh` you already have it; otherwise
+`ln -s $PREFIX/bin/opencode $PREFIX/bin/oc`.
 
 **Q: Can I upgrade?**
 A: yes. The package name stays `opencode` and the version is
@@ -128,7 +129,7 @@ A: yes — see [docs/BUILD.md](docs/BUILD.md).
 | Line | Release tag | Package version | Depends on | Size |
 |---|---|---|---|---|
 | **Source build (primary)** | `v<ver>+termux<N>` | `<ver>+termux<N>` | official Android Bun + NDK + Zig + Rust | 68 MB |
-| Mirror repack (fallback) | `v<ver>+mirror<N>` | `<ver>+mirror<N>` | third-party Termux packaging | 88 MB |
+| Mirror repack (fallback) | `v<ver>+mirror<N>` | `<ver>+mirror<N>` | third-party Termux packaging | 82 MB |
 
 The primary line is built from source: apart from opencode's own source, **no
 third-party packaging output is involved**. `watch-upstream` checks the upstream
@@ -147,6 +148,7 @@ The source build installs into `$PREFIX`:
 | `lib/opencode/libnoheap.so` | disables bionic heap tagging (the key fix) |
 | `lib/opencode/libopentui.so` | our bionic build of the TUI native library |
 | `lib/opencode/librust_pty.so` | our bionic build of the PTY library |
+| `lib/opencode/opentui.h` | native header, for plugins that write their own FFI |
 
 The wrapper does three things:
 
@@ -168,7 +170,8 @@ Full list in [docs/LESSONS.md](docs/LESSONS.md). The one worth remembering:
 > you use it"; a `$GITHUB_OUTPUT` that never got written so the dispatch was
 > silently skipped while the step still reported success.
 > Hence: the smoke test now **sends a real prompt**, the checks **statically
-> compare FFI symbols**, and every change runs **8 real interaction scenarios**.
+> compare FFI symbols**, and every change runs **the e2e script**
+> (6 interaction scenarios + 2 on-disk checks).
 
 ---
 

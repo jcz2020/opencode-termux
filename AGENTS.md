@@ -1,10 +1,11 @@
 # opencode-termux 项目知识库
 
-> 目标：自己的 Termux/aarch64 opencode 打包线。
-> 两条线：**A 重打包**（取上游 bionic 二进制 → 打补丁 shim → 出 deb）
-> 和 **B 源码构建**（opencode + libopentui + bun-pty 全部自己编，不依赖任何第三方打包产物）。
+> 目标：做一套自己的 Termux/aarch64 opencode 打包线。
+> 两条线：**A 重打包**（拿上游 bionic 二进制 → 打补丁 shim → 出 deb）
+> 和 **B 源码编译**（opencode + libopentui + bun-pty 全部自己编，不依赖任何第三方打包产物）。
 > 文档分工：`README.md` 面向用户（安装/FAQ）· `README.en.md` 英文版 ·
-> `docs/BUILD.md` 自己出包的指南 · `docs/LESSONS.md` 经验教训 · `docs/spike-android-bun.md` 开发过程记录。
+> `docs/BUILD.md` 自己编译的指南 · `docs/LESSONS.md` 经验教训 ·
+> `docs/spike-android-bun.md` 开发过程记录。
 > 改代码后如果影响用户可见行为，同步更新 README。
 
 **Status:** 已在本机跑通 · `opencode 2.2.5+termux2`（源码线）· `make smoke` = OK ·
@@ -33,7 +34,7 @@ opencode-termux/
 ├── scripts/smoke.sh      tmux 真 tty 起 TUI，断言主界面渲染 + 版本，崩了 FAIL
 ├── scripts/push-api.sh   github.com 的 git push 不通时，用 REST API 推提交
 ├── cache/                上游包缓存（79 MB，gitignore）
-├── dist/                 产物 deb + .sha256（80 MB，gitignore）
+├── dist/                 产物 deb + .sha256（gitignore）
 ├── NOTICE                上游二进制归属（LICENSE 保持纯 MIT 以便 GitHub 识别）
 ```
 
@@ -53,13 +54,13 @@ opencode-termux/
 ## COMMANDS
 
 ```sh
-# 二进制重打包线（取上游 bionic 二进制）
+# 二进制重打包线（拿上游 bionic 二进制）
 make fetch VERSION=2.2.5   # 取上游包进 cache/，.MTREE sha256 校验
-make deb   VERSION=2.2.5   # → dist/opencode_2.2.5+termux1_aarch64.deb
+make deb   VERSION=2.2.5   # → dist/opencode_2.2.5+mirror1_aarch64.deb
 make install               # dpkg -i 最新 dist/*.deb
 make smoke                 # tmux TUI 冒烟（失败非 0）
 
-# 源码构建线（不依赖任何第三方打包产物）
+# 源码编译线（不依赖任何第三方打包产物）
 make source-deb VERSION=2.2.5 REV=1   # 需要 NDK_ROOT / zig 0.17 / bun / rust
 
 # 校验
@@ -87,7 +88,7 @@ make clean                 # 清 build/ 与 dist/
 - npm 的 `opencode-linux-arm64` 最高 **1.19.5**（v1 家族）；**v2 的 aarch64 二进制
   在 npm 上没有**，只能从源码编（上游 B 线）。
 
-## 源码构建线（scripts/build-source-deb.sh）
+## 源码编译线（scripts/build-source-deb.sh）
 
 四个件全部现编，CI 是 `build-deb-source`：
 
@@ -104,7 +105,7 @@ make clean                 # 清 build/ 与 dist/
 统一钉 0.8.2，并用 `jq` 把 opencode catalog 里的 `@opentui/*` 一起提上去
 （改完 catalog 必须删 `bun.lock` 重装，否则 hash 不匹配）。
 
-出包前跑 `scripts/verify-abi.sh`：比对 `@opentui/core` 的 `nativeSymbols` 与
+出 deb 前跑 `scripts/verify-abi.sh`：比对 `@opentui/core` 的 `nativeSymbols` 与
 `.so` 的导出符号，这一步能在 CI 里提前抓住版本不匹配。
 
 ## 经验教训（完整版见 docs/LESSONS.md）

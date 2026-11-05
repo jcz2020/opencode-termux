@@ -4,7 +4,7 @@
 # 背景：`@opentui/core`（JS）与 `libopentui.so`（原生）必须**同版本**，否则
 # FFI 结构体布局对不上，运行时才炸：
 #   NativeError: ot_session_get_renderer_state failed: InvalidArgument
-# 这个错在设备上很难定位，所以出包前在 CI 里静态比对符号表。
+# 这个错在设备上很难定位，所以打 deb 之前在 CI 里静态比对符号表。
 #
 # 用法：verify-abi.sh <libopentui.so> <librust_pty.so> <@opentui/core 包目录> <bun-pty 包目录>
 set -euo pipefail

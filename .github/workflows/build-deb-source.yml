@@ -1,6 +1,6 @@
 name: build-deb-source
 
-# 纯源码线出包：上游一发版，我们自己编 opencode + libopentui + bun-pty，然后打 deb。
+# 纯源码线打包：上游一发版，我们自己编 opencode + libopentui + bun-pty，然后打 deb。
 # 不依赖任何第三方 Termux 打包产物。
 on:
   workflow_dispatch:
@@ -66,7 +66,7 @@ jobs:
       - name: Summary
         run: |
           {
-            echo "### 源码线出包"
+            echo "### 源码线打包"
             echo ""
             echo '```'
             ls -la dist/
