@@ -3,7 +3,9 @@
 > 目标：自己的 Termux/aarch64 opencode 打包线。
 > 两条线：**A 重打包**（取上游 bionic 二进制 → 打补丁 shim → 出 deb）
 > 和 **B 源码构建**（opencode + libopentui + bun-pty 全部自己编，不依赖任何第三方打包产物）。
-> 详细背景与上游三条构建线的分析见 `README.md`，独立化全过程见 `docs/spike-android-bun.md`。
+> 文档分工：`README.md` 面向用户（安装/FAQ）· `README.en.md` 英文版 ·
+> `docs/BUILD.md` 自己出包的指南 · `docs/spike-android-bun.md` 开发过程记录。
+> 改代码后如果影响用户可见行为，同步更新 README。
 
 **Status:** 已在本机跑通 · `opencode 2.2.5+termux2`（源码线）· `make smoke` = OK ·
 release `v2.2.5+termux2` 已发布
