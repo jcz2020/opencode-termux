@@ -14,7 +14,7 @@ set -euo pipefail
 VER="${1:?usage: build-source-deb.sh <version> [rev]}"
 REV="${2:-1}"
 API="${API:-30}"
-DEBVER="${VER}+termux${REV}"
+DEBVER="${VER}+termux${REV}"   # 源码线仍是 +termux<N>（对外的主线）
 BUN_RELEASE="${BUN_RELEASE:-bun-v1.4.4}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

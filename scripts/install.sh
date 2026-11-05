@@ -44,3 +44,10 @@ echo "==> 校验"
 dpkg -l opencode | tail -1
 opencode --version
 command -v oc >/dev/null && printf 'oc        -> %s\n' "$(oc --version)"
+
+# 源码线的包会带自编的原生库；镜像线没有。两种都要能起来。
+if [ -f "$PREFIX/lib/opencode/librust_pty.so" ]; then
+  echo "    （源码线：自带 librust_pty.so + otui/libopentui.so）"
+else
+  echo "    （镜像线：用上游 bionic 二进制）"
+fi

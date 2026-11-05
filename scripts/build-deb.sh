@@ -18,7 +18,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CACHE="$ROOT/cache"
 PKG="$CACHE/opencode-${VER}-1-aarch64.pkg.tar.xz"
 REV="${REV:-1}"
-DEBVER="${VER}+termux${REV}"
+DEBVER="${VER}+mirror${REV}"
 PREFIX_DIR="data/data/com.termux/files/usr"
 BUILD="$ROOT/build/root"
 OUT="$ROOT/dist"
@@ -69,7 +69,7 @@ Depends: bash, clang
 Conflicts: opencode-wrapper
 Replaces: opencode1-wrapper-standalone
 Installed-Size: $(( $(du -sk "$BUILD" | cut -f1) - 0 ))
-Description: OpenCode for Termux (upstream $VER + heap-tagging shim)
+Description: OpenCode for Termux (mirror repack of upstream $VER + heap-tagging shim)
  Repackaged native Termux build of OpenCode ($VER) with a small LD_PRELOAD
  shim that disables bionic heap pointer tagging, required for the TUI on
  Android 11+ (bun/libopentui: "Pointer exceeds safe integer range").

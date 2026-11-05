@@ -1,9 +1,10 @@
 name: build-deb
 
-# tag 形如 v2.2.5+termux1 → VERSION=2.2.5 REV=1
+# tag 形如 v2.2.5+mirror1 → VERSION=2.2.5 REV=1（镜像线；源码线用 build-deb-source）
 on:
   push:
-    tags: ['v*']
+    # 只认镜像线的 tag（v<ver>+mirror<N>），避免和源码线的 tag 抢同一个 release
+    tags: ['v*-mirror']
   workflow_dispatch:
     inputs:
       version:
@@ -40,12 +41,12 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             version="${{ inputs.version }}"
             rev="${{ inputs.rev }}"
-            tag="v${version}+termux${rev}"
+            tag="v${version}+mirror${rev}"
           else
             tag="${GITHUB_REF_NAME}"
-            core="${tag#v}"                     # 2.2.5+termux1
+            core="${tag#v}"                     # 2.2.5+mirror1
             version="${core%%+*}"               # 2.2.5
-            rev="${core##*+termux}"             # 1
+            rev="${core##*+mirror}"             # 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "rev=$rev"         >> "$GITHUB_OUTPUT"
@@ -95,7 +96,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: opencode_${{ steps.v.outputs.version }}+termux${{ steps.v.outputs.rev }}
+          name: opencode_${{ steps.v.outputs.version }}+mirror${{ steps.v.outputs.rev }}
           path: |
             dist/*.deb
             dist/*.sha256
@@ -123,8 +124,8 @@ jobs:
 
           \`\`\`sh
           pkg install -y xz-utils
-          curl -LO https://github.com/${{ github.repository }}/releases/download/${TAG}/opencode_${VERSION}+termux${REV}_aarch64.deb
-          dpkg -i opencode_${VERSION}+termux${REV}_aarch64.deb
+          curl -LO https://github.com/${{ github.repository }}/releases/download/${TAG}/opencode_${VERSION}+mirror${REV}_aarch64.deb
+          dpkg -i opencode_${VERSION}+mirror${REV}_aarch64.deb
           opencode --version
           \`\`\`
 
@@ -135,6 +136,6 @@ jobs:
             gh release upload "$TAG" dist/*.deb dist/*.sha256 --clobber
           else
             gh release create "$TAG" dist/*.deb dist/*.sha256 \
-              --title "opencode ${VERSION}+termux${REV}" \
+              --title "opencode ${VERSION}+mirror${REV} (镜像重打包)" \
               --notes-file notes.md
           fi

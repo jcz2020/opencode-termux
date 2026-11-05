@@ -65,6 +65,7 @@ jobs:
           ours=$(gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName' || true)
           echo "$ours" | sed 's/^/  已有: /'
           # 只跟"比我们已发的更新"的版本（上游 v1 维护线比 v2 小，避免误跟进）
+          # 注：源码线 tag 是 v<ver>+termux<N>；镜像线是 v<ver>+mirror<N>，两者独立。
           latest_ours=$(grep -oE '^v[0-9]+\.[0-9]+\.[0-9]+\+termux[0-9]+$' <<<"$ours" \
             | sed -E 's/^v([0-9.]+)\+termux[0-9]+$/\1/' | sort -V | tail -1 || true)
           if [ -n "$latest_ours" ] && [ "$(printf '%s\n%s\n' "$latest_ours" "$VER" | sort -V | tail -1)" != "$VER" ]; then
