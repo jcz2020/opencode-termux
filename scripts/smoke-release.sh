@@ -92,5 +92,33 @@ else
   echo "SKIP: 没装 python3，跳过 pty 自检"
 fi
 
+# ── 6. 端到端：真发一条消息，确认模型链路通 ────────────────────
+# （曾经在这栽过：原生库定位错了，一进 TUI 就崩，模型根本没机会）
+if [ "${E2E:-1}" = 1 ]; then
+  echo "==> 端到端（真发一条消息）"
+  SES2="smoke-e2e-$$"
+  trap 'tmux kill-session -t "$SES2" 2>/dev/null || true; cleanup; rm -rf "$WORK"' EXIT
+  tmux new-session -d -s "$SES2" -x 100 -y 30 -c "$CWD" opencode
+  sleep 12
+  tmux send-keys -t "$SES2" -l 'reply with exactly: E2E-OK and nothing else'
+  tmux send-keys -t "$SES2" Enter
+  got=0
+  for _ in $(seq 40); do
+    sleep 2
+    scr="$(tmux capture-pane -p -t "$SES2" 2>/dev/null || true)"
+    grep -q 'E2E-OK' <<<"$scr" && { got=1; break; }
+    grep -qiE 'crashed|Missing OpenTUI asset|InvalidArgument' <<<"$scr" && break
+  done
+  scr="$(tmux capture-pane -p -t "$SES2" 2>/dev/null || true)"
+  tmux kill-session -t "$SES2" 2>/dev/null || true
+  if [ "$got" = 1 ]; then
+    echo "OK: 模型链路通（收到 E2E-OK）"
+  else
+    echo "FAIL: 模型链路没通"
+    grep -v '^$' <<<"$scr" | tail -25
+    exit 1
+  fi
+fi
+
 echo
 echo "=== 设备冒烟通过（$TAG）==="
