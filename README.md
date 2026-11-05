@@ -67,6 +67,16 @@ make smoke-release TAG=v2.2.5+termux2   # 设备上：下载 deb → dpkg -i →
 > ABI 校验不是装饰：JS 侧 `@opentui/*` 与原生库版本不一致时，运行时才报
 > `ot_session_get_renderer_state failed: InvalidArgument`，很难定位。静态比对能提前抓到。
 
+## 两条线的命名空间（别搞混）
+
+| 线 | release tag | 包版本 | 触发 |
+|---|---|---|---|
+| **源码构建（主线）** | `v<ver>+termux<N>` | `<ver>+termux<N>` | `build-deb-source` / `watch-upstream` |
+| 镜像重打包（备选） | `v<ver>+mirror<N>` | `<ver>+mirror<N>` | `build-deb`（只认 `v*-mirror` tag） |
+
+> 早期两条线都用 `v<ver>+termux<N>`，导致 tag push 触发的镜像线构建把源码线的
+> release 资产 `--clobber` 掉了。现在命名空间分开，不会再互相覆盖。
+
 ## 安装（直接装 release）
 
 CI 在 tag 上自动出包并发布：
