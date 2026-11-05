@@ -28,7 +28,6 @@ permissions:
 env:
   UPSTREAM: anomalyco/opencode
   REPO: ${{ github.repository }}
-  MIRROR: Hope2333/opencode-termux
 
 jobs:
   check:
