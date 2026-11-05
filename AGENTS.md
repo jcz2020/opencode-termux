@@ -1,9 +1,12 @@
 # opencode-termux 项目知识库
 
-> 目标：自己的 Termux/aarch64 opencode 打包线——取上游 bionic 二进制 → 打补丁 shim → 出自己的 deb。
-> 不编译 opencode、不编译 bun。详细背景与上游三条构建线的分析见 `README.md`。
+> 目标：自己的 Termux/aarch64 opencode 打包线。
+> 两条线：**A 重打包**（取上游 bionic 二进制 → 打补丁 shim → 出 deb）
+> 和 **B 源码构建**（opencode + libopentui + bun-pty 全部自己编，不依赖任何第三方打包产物）。
+> 详细背景与上游三条构建线的分析见 `README.md`，独立化全过程见 `docs/spike-android-bun.md`。
 
-**Status:** 已在本机跑通 · `opencode 2.2.5+termux1` · `make smoke` = OK
+**Status:** 已在本机跑通 · `opencode 2.2.5+termux2`（源码线）· `make smoke` = OK ·
+release `v2.2.5+termux2` 已发布
 
 ## OVERVIEW
 
@@ -48,10 +51,19 @@ opencode-termux/
 ## COMMANDS
 
 ```sh
+# 二进制重打包线（取上游 bionic 二进制）
 make fetch VERSION=2.2.5   # 取上游包进 cache/，.MTREE sha256 校验
 make deb   VERSION=2.2.5   # → dist/opencode_2.2.5+termux1_aarch64.deb
 make install               # dpkg -i 最新 dist/*.deb
 make smoke                 # tmux TUI 冒烟（失败非 0）
+
+# 源码构建线（不依赖任何第三方打包产物）
+make source-deb VERSION=2.2.5 REV=1   # 需要 NDK_ROOT / zig 0.17 / bun / rust
+
+# 校验
+make smoke-static           # 解包 deb 做静态体检（不需要设备）
+make smoke-release TAG=v2.2.5+termux2   # 从 release 拉 deb 装到设备再冒烟
+
 make clean                 # 清 build/ 与 dist/
 ```
 
@@ -73,6 +85,26 @@ make clean                 # 清 build/ 与 dist/
 - npm 的 `opencode-linux-arm64` 最高 **1.19.5**（v1 家族）；**v2 的 aarch64 二进制
   在 npm 上没有**，只能从源码编（上游 B 线）。
 
+## 源码构建线（scripts/build-source-deb.sh）
+
+四个件全部现编，CI 是 `build-deb-source`：
+
+| 件 | 怎么来的 |
+|---|---|
+| `libopentui.so` | zig 0.17 编 opentui 核心（.a）+ NDK clang++ 编 yoga → 静态链 libc++ |
+| `librust_pty.so` | cargo + NDK clang 交叉编 bun-pty（termios 要补 android cfg） |
+| `opencode.real` | 官方 android bun + `--target=bun-linux-aarch64-android` 编译上游源码 |
+| `libnoheap.so` | 本仓库 `src/noheap.c` |
+
+**版本对齐是这里唯一真正的坑**：JS 侧 `@opentui/*` 与原生库必须同版本，否则运行时
+报 `ot_session_get_renderer_state failed: InvalidArgument`。opentui 0.8.0/0.8.1 的
+`build.zig` 还在用 zig 0.16 的 API（`b.args`/`b.build_root`），0.17 编不动 →
+统一钉 0.8.2，并用 `jq` 把 opencode catalog 里的 `@opentui/*` 一起提上去
+（改完 catalog 必须删 `bun.lock` 重装，否则 hash 不匹配）。
+
+出包前跑 `scripts/verify-abi.sh`：比对 `@opentui/core` 的 `nativeSymbols` 与
+`.so` 的导出符号，这一步能在 CI 里提前抓住版本不匹配。
+
 ## ANTI-PATTERNS
 
 1. **不能把真二进制挪出 `bin/`**：`RUNPATH=$ORIGIN/../lib/opencode` + `DT_NEEDED
@@ -85,6 +117,13 @@ make clean                 # 清 build/ 与 dist/
    （`build-deb.sh` 已处理）。
 5. **`make clean` 会删 `dist/`**：想留产物先拷走。
 6. 二进制/缓存不进 git（`.gitignore` 覆盖 `cache/` `build/` `dist/`）。
+7. **不要用宽泛 grep 找 FFI 符号**：`grep -oE 'ot_[a-z_]+:'` 会把注释/字符串里的
+   也算进来，误报一片。要精确取 `nativeSymbols` 对象的键（`scripts/abi-symbols.py`）。
+8. **不要写 `strings f | grep -q`**：`grep -q` 提前退出会让 `strings` 收到 SIGPIPE，
+   在 `set -o pipefail` 下整条管道被判失败。先落盘再匹配。
+9. **YAML 里的 heredoc**：块标量里的 `<<EOF` 内容如果缩进不对会破坏 YAML
+   结构（GitHub 报 "Invalid workflow file"）。改用 `printf` 拼字符串。
+   YAML 里内联值后面也不能跟 `# 注释`。
 
 ## ROADMAP（想彻底独立于上游时的清单）
 

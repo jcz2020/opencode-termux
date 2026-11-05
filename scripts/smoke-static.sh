@@ -26,10 +26,18 @@ dpkg-deb -x "$DEB" "$TMP"
 P="$TMP/data/data/com.termux/files/usr"
 
 echo "==> 文件齐全"
-for f in bin/opencode bin/opencode.real \
-         lib/opencode/libnoheap.so \
-         lib/opencode/librust_pty.so \
-         lib/opencode/otui/@opentui/core-android-arm64/libopentui.so; do
+# 两种包布局：
+#   源码线 → 自带 libopentui.so / librust_pty.so
+#   重打包线 → 只有上游二进制 + libnoheap.so
+REQUIRED="bin/opencode bin/opencode.real lib/opencode/libnoheap.so"
+if [ -f "$P/lib/opencode/otui/@opentui/core-android-arm64/libopentui.so" ]; then
+  SOURCE_LINE=1
+  REQUIRED="$REQUIRED lib/opencode/librust_pty.so lib/opencode/otui/@opentui/core-android-arm64/libopentui.so"
+else
+  SOURCE_LINE=0
+  echo "  --   这是重打包线布局（无自编原生库），跳过原生库检查"
+fi
+for f in $REQUIRED; do
   if [ -f "$P/$f" ]; then ok "$f"; else bad "$f 缺失"; fi
 done
 
@@ -45,19 +53,22 @@ check_wrapper_var() {
   fi
 }
 check_wrapper_var LD_PRELOAD    'LD_PRELOAD='   "$P/lib/opencode/libnoheap.so"
-check_wrapper_var OTUI_ASSET_ROOT 'OTUI_ASSET_ROOT=' "$P/lib/opencode/otui"
-check_wrapper_var BUN_PTY_LIB   'BUN_PTY_LIB='  "$P/lib/opencode/librust_pty.so"
+[ "$SOURCE_LINE" = 1 ] && {
+  check_wrapper_var OTUI_ASSET_ROOT 'OTUI_ASSET_ROOT=' "$P/lib/opencode/otui"
+  check_wrapper_var BUN_PTY_LIB   'BUN_PTY_LIB='  "$P/lib/opencode/librust_pty.so"
+}
 
 echo "==> 架构与依赖"
 for f in bin/opencode.real lib/opencode/libnoheap.so lib/opencode/librust_pty.so \
          lib/opencode/otui/@opentui/core-android-arm64/libopentui.so; do
+  [ -f "$P/$f" ] || continue
   [ -f "$P/$f" ] || continue
   arch="$(file -b "$P/$f")"
   case "$arch" in
     *aarch64*) ;;
     *) bad "$f 架构不对: $arch" ;;
   esac
-  glibc="$(readelf -d "$P/$f" 2>/dev/null | grep NEEDED | grep -viE 'libc\.so|libm\.so|libdl\.so|liblog\.so|libstdc\+\+|libc\+\+_shared' || true)"
+  glibc="$(readelf -d "$P/$f" 2>/dev/null | grep NEEDED | grep -viE 'libc\.so|libm\.so|libdl\.so|liblog\.so|libstdc\+\+|libc\+\+_shared|libopencode-crhandler' || true)"
   if [ -n "$glibc" ]; then bad "$f 有非 bionic 依赖: $glibc"; fi
 done
 [ "$fail" = 0 ] && ok "全部 ELF 都是 aarch64 且只依赖 bionic"
@@ -72,11 +83,14 @@ strings -a "$P/bin/opencode.real" > "$TMP/strings.txt" 2>/dev/null || true
 expected_ver="$(dpkg-deb -f "$DEB" Version | sed -E 's/\+termux[0-9]+$//')"
 if grep -qxF "$expected_ver" "$TMP/strings.txt"; then
   ok "二进制里含上游版本号 $expected_ver"
-else
+elif [ "$SOURCE_LINE" = 1 ]; then
+  # 源码线：版本是 OPENCODE_VERSION define 进去的，必须精确匹配
   bad "二进制里找不到上游版本号 $expected_ver（可能编成了 dev/占位版本）"
+else
+  ok "（重打包线不校验内嵌版本号）"
 fi
 
-if [ -n "$CORE_DIR" ] && [ -n "$PTY_DIR" ]; then
+if [ "$SOURCE_LINE" = 1 ] && [ -n "$CORE_DIR" ] && [ -n "$PTY_DIR" ]; then
   echo "==> FFI 符号"
   HERE="$(cd "$(dirname "$0")" && pwd)"
   bash "$HERE/verify-abi.sh" \

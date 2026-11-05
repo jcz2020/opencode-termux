@@ -39,13 +39,33 @@ M_HEAP_TAGGING_LEVEL_NONE)`，之后 `malloc` 返回 `0x7d831e9b00`。
 
 ## 两种出包方式
 
-| 方式 | 命令 / 入口 | 依赖 |
-|---|---|---|
-| 源码构建（推荐） | `scripts/build-source-deb.sh <ver> [rev]`，CI 是 `build-deb-source` | 只有官方 android bun + NDK + zig + rust |
-| 二进制重打包 | `make deb`，CI 是 `build-deb` | 上游/第三方的 bionic 二进制 |
+| 方式 | 命令 / 入口 | 依赖 | 产物 |
+|---|---|---|---|
+| **源码构建（推荐）** | `make source-deb VERSION=2.2.5`，CI 是 `build-deb-source` | 只有：官方 android bun + NDK + zig + rust | 68 MB |
+| 二进制重打包 | `make deb`，CI 是 `build-deb` | 上游/第三方的 bionic 二进制 | 82 MB |
+
+源码线把四个件全部自己编：
+
+| 件 | 怎么来的 |
+|---|---|
+| `opencode.real` | 官方 android bun + `--target=bun-linux-aarch64-android` 编译上游源码 |
+| `libopentui.so` | zig 0.17 编 opentui 核心（.a）+ NDK clang++ 编 yoga → 静态链 libc++ |
+| `librust_pty.so` | cargo + NDK clang 交叉编 bun-pty |
+| `libnoheap.so` | 本仓库的 6KB shim（关 bionic 堆 tagging） |
 
 `watch-upstream` 每 6 小时看上游 release，一有新版本就 dispatch **源码构建**并发布。
 详见 `docs/spike-android-bun.md`。
+
+### 校验
+
+```sh
+make smoke-static    # 解包 deb 静态体检：文件/架构/依赖/版本/FFI 符号/dpkg 元数据
+make verify-abi      # 只比对 @opentui/core 的 nativeSymbols 与 .so 导出符号
+make smoke-release TAG=v2.2.5+termux2   # 设备上：下载 deb → dpkg -i → tmux 冒烟
+```
+
+> ABI 校验不是装饰：JS 侧 `@opentui/*` 与原生库版本不一致时，运行时才报
+> `ot_session_get_renderer_state failed: InvalidArgument`，很难定位。静态比对能提前抓到。
 
 ## 安装（直接装 release）
 
