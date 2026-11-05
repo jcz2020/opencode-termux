@@ -20,6 +20,26 @@ fi
 echo "==> dpkg -i $DEB"
 dpkg -i "$DEB"
 
+# dpkg 不会因为"文件被手工改过"而报错（那是 dpkg-divert 的活儿），
+# 但我们 wrapper + .real 的形态必须保持一致：真二进制在 opencode.real，
+# wrapper 在 opencode。若被别的安装方式覆盖过，这里修回来。
+if [ ! -x "$BIN" ] || ! grep -q 'opencode.real' "$BIN" 2>/dev/null; then
+  echo "==> 修复 wrapper（dpkg 装的包应自带 opencode wrapper）"
+  if [ -f "$REAL" ]; then
+    cat > "$BIN" <<WRAP
+#!/data/data/com.termux/files/usr/bin/bash
+# opencode-termux wrapper
+P="\${PREFIX:-/data/data/com.termux/files/usr}"
+LD_PRELOAD="\$P/lib/opencode/libnoheap.so\${LD_PRELOAD:+:\$LD_PRELOAD}"
+OTUI_ASSET_ROOT="\$P/lib/opencode/otui"
+BUN_PTY_LIB="\$P/lib/opencode/librust_pty.so"
+export LD_PRELOAD OTUI_ASSET_ROOT BUN_PTY_LIB
+exec "\$P/bin/opencode.real" "\$@"
+WRAP
+    chmod 755 "$BIN"
+  fi
+fi
+
 echo "==> 校验"
 dpkg -l opencode | tail -1
 opencode --version
