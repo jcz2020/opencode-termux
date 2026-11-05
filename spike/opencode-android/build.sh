@@ -96,11 +96,25 @@ if not files:
     raise SystemExit("找不到 NATIVE_FILE_NAMES（@opentui/core 结构变了？）")
 for p in files:
     s = p.read_text()
-    if 'android: "libopentui.so"' in s:
-        continue
-    s = s.replace('win32: "opentui.dll"', 'win32: "opentui.dll",\n  android: "libopentui.so"', 1)
-    p.write_text(s)
-    print("   patched", p)
+    changed = False
+    if 'android: "libopentui.so"' not in s:
+        s = s.replace('win32: "opentui.dll"', 'win32: "opentui.dll",\n  android: "libopentui.so"', 1)
+        changed = True
+    # 让原生库可以用专用环境变量定位（OPENTUI_NATIVE_LIB）。
+    # 不能用 OTUI_ASSET_ROOT：那被 opentui 当作"所有资产"的根，
+    # 缺 parser.worker.js / tree-sitter.wasm 就会抛
+    # "Missing OpenTUI asset ..."。
+    anchor = "async function resolveNativeLibraryPath() {\n  const asset = getNativeAssetDescriptor(getCurrentNodeAssetTarget());"
+    if anchor in s and "OPENTUI_NATIVE_LIB" not in s:
+        s = s.replace(anchor,
+            "async function resolveNativeLibraryPath() {\n"
+            "  const explicit = process.env.OPENTUI_NATIVE_LIB;\n"
+            "  if (explicit) return explicit;\n"
+            "  const asset = getNativeAssetDescriptor(getCurrentNodeAssetTarget());", 1)
+        changed = True
+    if changed:
+        p.write_text(s)
+        print("   patched", p)
 PY
 
 echo "==> 3/3 bun build --compile --target=bun-linux-aarch64-android"
