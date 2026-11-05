@@ -201,9 +201,12 @@ dpkg-deb -I "$DEB" | sed -n '1,14p'
 echo "--- files"
 dpkg-deb -c "$DEB" | awk '{print "   ", $1, $6}'
 echo "--- 架构检查（都必须是 aarch64 bionic）"
+TMPX="$(mktemp -d)"
+dpkg-deb -x "$DEB" "$TMPX"
 for f in bin/opencode.real lib/opencode/libnoheap.so lib/opencode/librust_pty.so \
-         lib/opencode/otui/@opentui/core-android-arm64/libopentui.so; do
-  printf '   %-62s ' "$f"
-  dpkg-deb --fsys-tarfile "$DEB" | tar -xO "./data/data/com.termux/files/usr/$f" 2>/dev/null | file - | cut -d: -f2 | cut -c1-60
+         lib/opencode/libopentui.so; do
+  printf '   %-42s ' "$f"
+  file -b "$TMPX/data/data/com.termux/files/usr/$f" | cut -c1-58
 done
+rm -rf "$TMPX"
 echo "DONE: $DEB"
