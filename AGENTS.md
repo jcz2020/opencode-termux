@@ -74,23 +74,27 @@ make clean                 # 清 build/ 与 dist/
 
 ## 网络约束（本机实测）
 
-- `github.com` **不可用**；`api.github.com` / `objects.githubusercontent.com` /
-  `registry.npmjs.org` 可用 → 下载一律走 **release asset API**（302 到签名 URL），
+- `github.com` **时通时不通**（2026-11-05 实测：上午还是 TLS RST，
+  当天下午 `git push` 就连上了）。`api.github.com` / `objects.githubusercontent.com` /
+  `registry.npmjs.org` 一直可用 → 下载一律走 **release asset API**（302 到签名 URL），
   不要拼 `releases/download/...` 直链。
-- **`git push` 也走不通**（github.com:443 TLS RST：
-  `error:0A000126:SSL routines::unexpected eof while reading`）。推送用
-  `scripts/push-api.sh`（Git Data API：blob → tree → commit → update ref）。
-  注意远端 commit SHA 与本地**不一致**（GitHub 把 author/committer 时区归一化成
-  UTC，commit 原始字节不同），但 tree 逐字节一致，脚本会断言这点；
-  推送进度记在 `.git/api-push-state`，不依赖本地有远端对象。
-  若某次网络恰巧通（`git push` 能连上），跑一次 `git push --force origin main`
-  即可把远端 SHA 与本地重新对齐（仓库只有自己在推，force 安全），之后两边一致。
+- **推送：先试 `git push origin main`，不通再退回 API。**
+  - `git push` 失败时的典型报错：github.com:443 TLS RST
+    （`error:0A000126:SSL routines::unexpected eof while reading`）。
+    这时用 `scripts/push-api.sh`（Git Data API：blob → tree → commit → update ref）。
+  - 走 API 推过的远端，commit SHA 与本地**不一致**（GitHub 把 author/committer
+    时区归一化成 UTC，commit 原始字节不同），但 tree 逐字节一致，脚本会断言这点；
+    推送进度记在 `.git/api-push-state`，不依赖本地有远端对象。
+  - 之后若 `git push` 通了，会被拒（`fetch first`，因为远端那些提交本地没有）。
+    先 `git fetch origin main` 核对 tree 是否一致，然后
+    `git push --force origin main` 把远端 SHA 与本地重新对齐
+    （仓库只有自己在推，force 安全）。2026-11-05 实测走完这条，两边 SHA 就一致了。
 - npm 的 `opencode-linux-arm64` 最高 **1.19.5**（v1 家族）；**v2 的 aarch64 二进制
   在 npm 上没有**，只能从源码编（上游 B 线）。
 
 ## 源码编译线（scripts/build-source-deb.sh）
 
-四个件全部现编，CI 是 `build-deb-source`：
+四个组件全部现编，CI 是 `build-deb-source`：
 
 | 件 | 怎么来的 |
 |---|---|

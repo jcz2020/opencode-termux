@@ -1,9 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# push-api.sh — 用 GitHub REST API 推本地提交（绕过被墙的 github.com:443）。
+# push-api.sh — 用 GitHub REST API 推本地提交（git-over-https 连不上时的备份）。
 #
-# 背景：本机 github.com 的 git-over-https 经常被 TLS RST
+# 背景：本机 github.com 的 git-over-https **时通时不通**，不通时报 TLS RST
 # （`TLS connect error: error:0A000126:SSL routines::unexpected eof while reading`），
-# 但 api.github.com 一直可用。这个脚本用 Git Data API 重放提交：
+# 但 api.github.com 一直可用。所以策略是：**先试 `git push origin main`，
+# 报错了才用这个脚本**。这个脚本用 Git Data API 重放提交：
 #   blob（每个唯一对象一次）→ tree → commit（author/committer/message 复制）
 # → 更新 ref。
 #
@@ -12,6 +13,10 @@
 # （文件内容）逐字节一致，本脚本结束前会断言这一点。
 # 进度记在 .git/api-push-state（本地提交 SHA / 远端提交 SHA），所以不依赖
 # 本地是否存在远端对象。
+#
+# 走完这个脚本后，若之后 `git push` 又通了，会被拒（远端那些提交本地没有）。
+# 先 `git fetch origin main` 核对 tree 一致，再 `git push --force origin main`
+# 把远端 SHA 与本地重新对齐。
 #
 # 用法：scripts/push-api.sh [owner/repo] [branch]
 set -euo pipefail
