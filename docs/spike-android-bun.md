@@ -1,4 +1,7 @@
-# Spike: 不依赖 Hope2333（Android bun + 源码编译 opencode）
+# 开发记录：把 opencode 变成"安卓原生"的全过程
+
+> 这是一份**开发过程记录**（踩坑、实验、结论），不是用户文档。
+> 想装 → [README](../README.md)；想自己编 → [BUILD.md](BUILD.md)。
 
 日期：2026-11-03/04 · 机器：Termux / Android 16 (API 36) / aarch64 / 15 GB RAM
 结论：**方向可行，bun 不再是门槛；只差 bionic 版 `libopentui.so` 的 C++ 运行时链接。**
