@@ -63,6 +63,16 @@ jobs:
           set -euo pipefail
           ours=$(gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName' || true)
           echo "$ours" | sed 's/^/  已有: /'
+          forced='${{ inputs.force_version }}'
+          if [ -n "$forced" ]; then
+            # force 语义：强制当作新版本处理（调试用）
+            rev=$( (grep -oE "^v${VER}\\+termux([0-9]+)$" <<<"$ours" | sed -E 's/.*termux([0-9]+)$/\\1/' | sort -n | tail -1) || true)
+            next=$(( ${rev:-0} + 1 ))
+            echo "new=true" >> "$GITHUB_OUTPUT"
+            echo "rev=$next" >> "$GITHUB_OUTPUT"
+            echo "强制模式：$VER → 下一个 termux 修订号 $next"
+            exit 0
+          fi
           # 只跟"比我们已发的更新"的版本（上游 v1 维护线比 v2 小，避免误跟进）
           # 注：源码线 tag 是 v<ver>+termux<N>；镜像线是 v<ver>+mirror<N>，两者独立。
           latest_ours=$(grep -oE '^v[0-9]+\.[0-9]+\.[0-9]+\+termux[0-9]+$' <<<"$ours" \
@@ -75,9 +85,10 @@ jobs:
             echo "已经发过 $VER，跳过"
           else
             rev=$( (grep -oE "^v${VER}\+termux([0-9]+)$" <<<"$ours" | sed -E 's/.*termux([0-9]+)$/\1/' | sort -n | tail -1) || true)
+            next=$(( ${rev:-0} + 1 ))
             echo "new=true" >> "$GITHUB_OUTPUT"
-            echo "rev=${rev:-1}" >> "$GITHUB_OUTPUT"
-            echo "新版本: $VER（下一个 termux 修订号 ${rev:-1}）"
+            echo "rev=$next" >> "$GITHUB_OUTPUT"
+            echo "新版本: $VER（下一个 termux 修订号 $next）"
           fi
 
       - name: Dispatch source build + release

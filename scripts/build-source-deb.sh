@@ -85,6 +85,21 @@ if [ ! -d bp/rust-pty ]; then
 fi
 
 # ── 2. 编三个原生件 ─────────────────────────────────────────────
+# opentui 的 .zig-version 必须和我们的 zig 一致（0.17.0）。
+# 上游哪天把 @opentui/core 提到需要 zig 0.18 的版本，这里会明确报错，
+# 而不是让 zig 吐一堆看不懂的编译错误。
+if [ -f "$WORK/otui/.zig-version" ]; then
+  need_zig="$(cat "$WORK/otui/.zig-version" | tr -d '[:space:]')"
+  have_zig="$(zig version 2>/dev/null || echo unknown)"
+  echo "==> zig 版本检查：需要 $need_zig，当前 $have_zig"
+  if [ "$need_zig" != "$have_zig" ]; then
+    echo "ERROR: opentui v$OTUI_VER 需要 zig $need_zig，本机是 $have_zig。" >&2
+    echo "       装对应版本的 zig 后重试；或临时用 OTUI_VER_OVERRIDE 指定一个" >&2
+    echo "       与本机 zig 兼容的 opentui 版本。" >&2
+    exit 1
+  fi
+fi
+
 echo "==> [1/4] libopentui.so"
 bash "$ROOT/spike/libopentui-android/build.sh" "$WORK/otui" "$NDK_ROOT" "$API" | tail -5
 LIBOTUI="$WORK/otui/packages/native/lib/aarch64-linux-android.$API/libopentui.so"
