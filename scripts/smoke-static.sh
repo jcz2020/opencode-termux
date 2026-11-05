@@ -30,9 +30,9 @@ echo "==> 文件齐全"
 #   源码线 → 自带 libopentui.so / librust_pty.so
 #   重打包线 → 只有上游二进制 + libnoheap.so
 REQUIRED="bin/opencode bin/opencode.real lib/opencode/libnoheap.so"
-if [ -f "$P/lib/opencode/otui/@opentui/core-android-arm64/libopentui.so" ]; then
+if [ -f "$P/lib/opencode/libopentui.so" ]; then
   SOURCE_LINE=1
-  REQUIRED="$REQUIRED lib/opencode/librust_pty.so lib/opencode/otui/@opentui/core-android-arm64/libopentui.so"
+  REQUIRED="$REQUIRED lib/opencode/librust_pty.so lib/opencode/libopentui.so"
 else
   SOURCE_LINE=0
   echo "  --   这是重打包线布局（无自编原生库），跳过原生库检查"
@@ -54,13 +54,13 @@ check_wrapper_var() {
 }
 check_wrapper_var LD_PRELOAD    'LD_PRELOAD='   "$P/lib/opencode/libnoheap.so"
 [ "$SOURCE_LINE" = 1 ] && {
-  check_wrapper_var OTUI_ASSET_ROOT 'OTUI_ASSET_ROOT=' "$P/lib/opencode/otui"
+  check_wrapper_var OPENTUI_NATIVE_LIB 'OPENTUI_NATIVE_LIB=' "$P/lib/opencode/libopentui.so"
   check_wrapper_var BUN_PTY_LIB   'BUN_PTY_LIB='  "$P/lib/opencode/librust_pty.so"
 }
 
 echo "==> 架构与依赖"
 for f in bin/opencode.real lib/opencode/libnoheap.so lib/opencode/librust_pty.so \
-         lib/opencode/otui/@opentui/core-android-arm64/libopentui.so; do
+         lib/opencode/libopentui.so; do
   [ -f "$P/$f" ] || continue
   [ -f "$P/$f" ] || continue
   arch="$(file -b "$P/$f")"
@@ -94,7 +94,7 @@ if [ "$SOURCE_LINE" = 1 ] && [ -n "$CORE_DIR" ] && [ -n "$PTY_DIR" ]; then
   echo "==> FFI 符号"
   HERE="$(cd "$(dirname "$0")" && pwd)"
   bash "$HERE/verify-abi.sh" \
-    "$P/lib/opencode/otui/@opentui/core-android-arm64/libopentui.so" \
+    "$P/lib/opencode/libopentui.so" \
     "$P/lib/opencode/librust_pty.so" "$CORE_DIR" "$PTY_DIR" || fail=1
 fi
 

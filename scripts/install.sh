@@ -31,9 +31,9 @@ if [ ! -x "$BIN" ] || ! grep -q 'opencode.real' "$BIN" 2>/dev/null; then
 # opencode-termux wrapper
 P="\${PREFIX:-/data/data/com.termux/files/usr}"
 LD_PRELOAD="\$P/lib/opencode/libnoheap.so\${LD_PRELOAD:+:\$LD_PRELOAD}"
-OTUI_ASSET_ROOT="\$P/lib/opencode/otui"
+OPENTUI_NATIVE_LIB="\$P/lib/opencode/libopentui.so"
 BUN_PTY_LIB="\$P/lib/opencode/librust_pty.so"
-export LD_PRELOAD OTUI_ASSET_ROOT BUN_PTY_LIB
+export LD_PRELOAD OPENTUI_NATIVE_LIB BUN_PTY_LIB
 exec "\$P/bin/opencode.real" "\$@"
 WRAP
     chmod 755 "$BIN"

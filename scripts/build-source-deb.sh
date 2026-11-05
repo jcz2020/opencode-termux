@@ -128,28 +128,28 @@ echo "==> 组装 deb rootfs"
 BUILD="$WORK/debroot"
 rm -rf "$BUILD"
 mkdir -p "$BUILD/$PREFIX_DIR/bin" \
-         "$BUILD/$PREFIX_DIR/lib/opencode/otui/@opentui/core-android-arm64" \
+         "$BUILD/$PREFIX_DIR/lib/opencode" \
          "$BUILD/DEBIAN"
 
 install -m 755 "$WORK/opencode.stripped" "$BUILD/$PREFIX_DIR/bin/opencode.real"
 install -m 755 "$WORK/libnoheap.so"      "$BUILD/$PREFIX_DIR/lib/opencode/libnoheap.so"
 install -m 755 "$LIBPTY"                 "$BUILD/$PREFIX_DIR/lib/opencode/librust_pty.so"
-install -m 644 "$LIBOTUI"                "$BUILD/$PREFIX_DIR/lib/opencode/otui/@opentui/core-android-arm64/libopentui.so"
+install -m 644 "$LIBOTUI"                "$BUILD/$PREFIX_DIR/lib/opencode/libopentui.so"
 install -m 644 "$WORK/otui/packages/native/include/opentui.h" \
-  "$BUILD/$PREFIX_DIR/lib/opencode/otui/@opentui/core-android-arm64/opentui.h" 2>/dev/null || true
+  "$BUILD/$PREFIX_DIR/lib/opencode/opentui.h" 2>/dev/null || true
 
 cat > "$BUILD/$PREFIX_DIR/bin/opencode" <<'WRAP'
 #!/data/data/com.termux/files/usr/bin/bash
 # opencode-termux wrapper（源码线）
 #  * libnoheap.so：关 bionic 堆 tagging，否则 bun/libopentui 报
 #    "Pointer exceeds safe integer range"
-#  * OTUI_ASSET_ROOT：把 @opentui/core 指到我们自编的 libopentui.so
+#  * OPENTUI_NATIVE_LIB：把 @opentui/core 的原生库指到我们自编的 libopentui.so
 #  * BUN_PTY_LIB：把 bun-pty 指到我们自编的 librust_pty.so
 P="${PREFIX:-/data/data/com.termux/files/usr}"
 LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
-OTUI_ASSET_ROOT="$P/lib/opencode/otui"
+OPENTUI_NATIVE_LIB="$P/lib/opencode/libopentui.so"
 BUN_PTY_LIB="$P/lib/opencode/librust_pty.so"
-export LD_PRELOAD OTUI_ASSET_ROOT BUN_PTY_LIB
+export LD_PRELOAD OPENTUI_NATIVE_LIB BUN_PTY_LIB
 exec "$P/bin/opencode.real" "$@"
 WRAP
 chmod 755 "$BUILD/$PREFIX_DIR/bin/opencode"
