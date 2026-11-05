@@ -4,7 +4,7 @@
 > 两条线：**A 重打包**（取上游 bionic 二进制 → 打补丁 shim → 出 deb）
 > 和 **B 源码构建**（opencode + libopentui + bun-pty 全部自己编，不依赖任何第三方打包产物）。
 > 文档分工：`README.md` 面向用户（安装/FAQ）· `README.en.md` 英文版 ·
-> `docs/BUILD.md` 自己出包的指南 · `docs/spike-android-bun.md` 开发过程记录。
+> `docs/BUILD.md` 自己出包的指南 · `docs/LESSONS.md` 经验教训 · `docs/spike-android-bun.md` 开发过程记录。
 > 改代码后如果影响用户可见行为，同步更新 README。
 
 **Status:** 已在本机跑通 · `opencode 2.2.5+termux2`（源码线）· `make smoke` = OK ·
@@ -106,6 +106,20 @@ make clean                 # 清 build/ 与 dist/
 
 出包前跑 `scripts/verify-abi.sh`：比对 `@opentui/core` 的 `nativeSymbols` 与
 `.so` 的导出符号，这一步能在 CI 里提前抓住版本不匹配。
+
+## 经验教训（完整版见 docs/LESSONS.md）
+
+最容易被忽略的一类坑：**表面全绿、实际没生效**。改代码前先看这几条：
+
+1. **冒烟必须测真实交互**。"能渲染"过不了"一用就崩"（曾漏掉 `Missing OpenTUI asset`）。
+2. **有条件分支的 workflow，要看输出是否真的产生**。曾因 `$GITHUB_OUTPUT` 没写成
+   导致 dispatch 静默跳过，step 还报 success。
+3. **算"下一个版本号"用「已有最大 +1」**，不是「已有最大」（否则 clobber 已发布 release）。
+4. **多产线的 tag 命名空间必须一开始就分开**（源码线 `+termux<N>` / 镜像线 `+mirror<N>`）。
+5. **原生库 / JS / 包版本三者对齐**，并在 CI 里静态校验（`scripts/verify-abi.sh`）。
+6. `strings f | grep -q` 在 `set -o pipefail` 下会误判失败 → 先落盘再匹配。
+7. YAML 里内联值后面不能跟 `# 注释`；块标量里不要嵌 heredoc。
+8. `releases/latest` 可能指向维护线 → 自己按 semver 取最大。
 
 ## ANTI-PATTERNS
 

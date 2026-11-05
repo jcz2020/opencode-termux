@@ -158,6 +158,20 @@ BUN_PTY_LIB=.../librust_pty.so        # tell bun-pty where its lib is
 
 ---
 
+## Lessons learned
+
+Full list in [docs/LESSONS.md](docs/LESSONS.md). The one worth remembering:
+
+> **"The step succeeded" is not the same as "the right thing happened".**
+> Several bugs in this project were green CI + passing tests + nothing actually
+> done: a smoke test that only checked rendering and missed "crashes as soon as
+> you use it"; a `$GITHUB_OUTPUT` that never got written so the dispatch was
+> silently skipped while the step still reported success.
+> Hence: the smoke test now **sends a real prompt**, the checks **statically
+> compare FFI symbols**, and every change runs **8 real interaction scenarios**.
+
+---
+
 ## Background: why the official package can't be reused
 
 npm only carries opencode up to the **v1 family** (`opencode-linux-arm64` tops out

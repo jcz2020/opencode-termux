@@ -153,6 +153,17 @@ BUN_PTY_LIB=.../librust_pty.so        # 告诉 bun-pty 库在哪
 
 ---
 
+## 踩过的坑 / 经验教训
+
+完整清单见 [docs/LESSONS.md](docs/LESSONS.md)。其中最值得记住的一条：
+
+> **只看"步骤成功"会漏掉真正的问题。**
+> 本项目好几处 bug 都是"CI 绿、测试过、但该做的事没做"——
+> 比如冒烟只测渲染，测不出"一进 TUI 就崩"；
+> 比如 `$GITHUB_OUTPUT` 没写进去，dispatch 静默跳过，step 还报 success。
+> 所以现在：冒烟会**真发一条 prompt**、校验会**静态比对 FFI 符号**、
+> 每次改动都会**跑 8 个真实交互场景**。
+
 ## 上游构建线背景（为什么不能直接用官方包）
 
 opencode 官方在 npm 上只发布到 **v1 家族**（`opencode-linux-arm64` 最高 1.19.5），
