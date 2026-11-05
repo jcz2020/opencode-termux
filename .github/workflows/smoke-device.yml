@@ -1,0 +1,51 @@
+name: smoke-device
+
+# 真机冒烟的入口说明 + 自建 runner 时的自动执行。
+#
+# GitHub 的 hosted runner 是 x86_64 Linux，跑不了 bionic 的 aarch64 二进制，
+# 所以设备冒烟必须在 Termux 设备上做。两种方式：
+#
+#   1) 手跑（推荐）：在 Termux 设备上执行
+#        bash scripts/smoke-release.sh v2.2.5+termux2
+#      脚本会：下载 release 里的 deb → dpkg -i → tmux 真 tty 起 TUI → 断言渲染
+#
+#   2) 自动（需要注册自建 runner）：在 Termux 设备上装 GitHub Actions runner
+#      并打上 [self-hosted, android] 标签，之后每次发版会自动冒烟。
+#      见 README 的「设备冒烟」一节。
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要测的 release tag（如 v2.2.5+termux2）'
+        required: true
+        default: 'v2.2.5+termux2'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Summary
+        run: |
+          {
+            echo "### 设备冒烟"
+            echo ""
+            echo "hosted runner 跑不了 bionic/aarch64，设备冒烟请在 Termux 上执行："
+            echo ""
+            echo '```sh'
+            echo "bash scripts/smoke-release.sh '${{ inputs.tag }}'"
+            echo '```'
+            echo ""
+            echo "若已在 Termux 上注册了带 \`[self-hosted, android]\` 标签的 runner，"
+            echo "则把本 workflow 的 \`runs-on\` 换成 \`[self-hosted, android]\` 即可自动跑。"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check release assets exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release view "${{ inputs.tag }}" --repo "${{ github.repository }}" \
+            --json assets --jq '.assets[].name'

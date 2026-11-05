@@ -67,11 +67,13 @@ echo "==> 版本字符串"
 # 注意：不要用 `strings | grep -q`（grep -q 提前退出会让 strings 收到 SIGPIPE，
 # 在 set -o pipefail 下整条管道会被判为失败）——先落盘再匹配。
 strings -a "$P/bin/opencode.real" > "$TMP/strings.txt" 2>/dev/null || true
-v="$(grep -m1 -oxE '[0-9]+\.[0-9]+\.[0-9]+' "$TMP/strings.txt" || true)"
-if [ -n "$v" ]; then
-  ok "二进制里能找到版本号（$v）"
+# 上游版本号（deb 版本去掉 +termux<N>）必须出现在二进制里 —— 说明编译时
+# 真的把 OPENCODE_VERSION 编进去了，而不是只打了个 dev 分支的占位版本。
+expected_ver="$(dpkg-deb -f "$DEB" Version | sed -E 's/\+termux[0-9]+$//')"
+if grep -qxF "$expected_ver" "$TMP/strings.txt"; then
+  ok "二进制里含上游版本号 $expected_ver"
 else
-  bad "二进制里找不到版本号"
+  bad "二进制里找不到上游版本号 $expected_ver（可能编成了 dev/占位版本）"
 fi
 
 if [ -n "$CORE_DIR" ] && [ -n "$PTY_DIR" ]; then
