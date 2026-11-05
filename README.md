@@ -141,6 +141,7 @@ A：能，见 [docs/BUILD.md](docs/BUILD.md)。
 | `lib/opencode/libnoheap.so` | 关 bionic 堆 tagging（解决 TUI 崩溃的关键） |
 | `lib/opencode/libopentui.so` | 自己编的 TUI 原生库（bionic） |
 | `lib/opencode/librust_pty.so` | 自己编的 PTY 库（跑命令 / 终端面板） |
+| `lib/opencode/opentui.h` | 原生库的头文件（给需要自己写 FFI 的插件用） |
 
 wrapper 做的三件事：
 
