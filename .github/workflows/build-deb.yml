@@ -3,8 +3,10 @@ name: build-deb
 # tag 形如 v2.2.5+mirror1 → VERSION=2.2.5 REV=1（镜像线；源码线用 build-deb-source）
 on:
   push:
-    # 只认镜像线的 tag（v<ver>+mirror<N>），避免和源码线的 tag 抢同一个 release
-    tags: ['v*-mirror']
+    # 只认镜像线的 tag（v<ver>+mirror<N>），避免和源码线的 tag 抢同一个 release。
+    # 注意：GitHub 的 glob 里 `+` 是特殊字符（前一个字符重复 ≥1 次），
+    # 匹配字面量 `+` 必须转义。单引号里反斜杠原样保留，正好交给 GitHub。
+    tags: ['v*\+mirror*']
   workflow_dispatch:
     inputs:
       version:
@@ -12,7 +14,7 @@ on:
         required: true
         default: '2.2.5'
       rev:
-        description: '本项目的修订号（termux<N>）'
+        description: '本项目的修订号（mirror<N>）'
         required: true
         default: '1'
       publish:
@@ -29,6 +31,9 @@ env:
 
 jobs:
   build:
+    # tags 过滤器里已经限定镜像线；这里再兜一层，防止以后改触发条件时
+    # 误让源码线的 tag（v<ver>+termux<N>）跑到镜像线打包。
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.ref_name, '+mirror') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -48,6 +53,17 @@ jobs:
             version="${core%%+*}"               # 2.2.5
             rev="${core##*+mirror}"             # 1
           fi
+          case "$tag" in
+            v*+mirror*) ;;
+            *) echo "ERROR: 镜像线 tag 必须形如 v<ver>+mirror<N>，收到: $tag" >&2; exit 1 ;;
+          esac
+          case "$version" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "ERROR: version 形如 2.2.5，收到: $version" >&2; exit 1 ;;
+          esac
+          case "$rev" in
+            '' | *[!0-9]*) echo "ERROR: rev 必须是数字，收到: $rev" >&2; exit 1 ;;
+          esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "rev=$rev"         >> "$GITHUB_OUTPUT"
           echo "tag=$tag"         >> "$GITHUB_OUTPUT"

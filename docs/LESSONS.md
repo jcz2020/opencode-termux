@@ -44,7 +44,8 @@
 - **怎么发现的**：源码线 release 的描述写着「源码构建」，**资产却是镜像线的产物** ——
   tag push 触发的镜像线 workflow 用 `--clobber` 给覆盖了。
 - **怎么修**：命名空间分开（源码线 `v<ver>+termux<N>`，镜像线 `v<ver>+mirror<N>`），
-  镜像线 workflow 只认 `v*-mirror` tag。
+  镜像线 workflow 只认 `v<ver>+mirror<N>`（触发模式 `'v*\+mirror*'`，GitHub glob 里
+  `+` 要转义）。
 - **教训**：**同一个仓库里有多条产线，命名空间必须一开始就分开**。
   另外，「描述」和「内容」不一致时人眼很难发现 —— 得定期核对资产内容，不能只看 tag。
 

@@ -156,4 +156,5 @@ make install
 ```
 
 它的 tag 命名空间是 `v<ver>+mirror<N>`，和源码线的 `v<ver>+termux<N>` 分开，
-两边不会互相覆盖 release。
+两边不会互相覆盖 release。推 `v<ver>+mirror<N>` tag 会触发 `build-deb`
+自动打包并发布；也可以手动 `gh workflow run build-deb -f version=... -f rev=... -f publish=true`。
