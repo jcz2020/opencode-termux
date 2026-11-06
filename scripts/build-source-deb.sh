@@ -154,17 +154,42 @@ install -m 644 "$WORK/otui/packages/native/include/opentui.h" \
   "$BUILD/$PREFIX_DIR/lib/opencode/opentui.h" 2>/dev/null || true
 
 cat > "$BUILD/$PREFIX_DIR/bin/opencode" <<'WRAP'
-#!/data/data/com.termux/files/usr/bin/bash
-# opencode-termux wrapper（源码线）
+#!/system/bin/sh
+# opencode-termux wrapper（源码线，支持 prefix 自推导重定位）
 #  * libnoheap.so：关 bionic 堆 tagging，否则 bun/libopentui 报
 #    "Pointer exceeds safe integer range"
 #  * OPENTUI_NATIVE_LIB：把 @opentui/core 的原生库指到我们自编的 libopentui.so
 #  * BUN_PTY_LIB：把 bun-pty 指到我们自编的 librust_pty.so
-P="${PREFIX:-/data/data/com.termux/files/usr}"
-LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
-OPENTUI_NATIVE_LIB="$P/lib/opencode/libopentui.so"
-BUN_PTY_LIB="$P/lib/opencode/librust_pty.so"
-export LD_PRELOAD OPENTUI_NATIVE_LIB BUN_PTY_LIB
+set -e
+
+SELF="$0"
+if command -v realpath >/dev/null 2>&1; then
+  SELF="$(realpath "$SELF" 2>/dev/null || echo "$SELF")"
+else
+  while [ -L "$SELF" ]; do
+    _DIR="$(CDPATH= cd -- "$(dirname -- "$SELF")" && pwd -P)"
+    _TARGET="$(readlink "$SELF")"
+    case "$_TARGET" in
+      /*) SELF="$_TARGET" ;;
+      *) SELF="$_DIR/$_TARGET" ;;
+    esac
+  done
+fi
+
+_BIN_DIR="$(CDPATH= cd -- "$(dirname -- "$SELF")" && pwd -P)"
+_DERIVED_PREFIX="$(CDPATH= cd -- "$_BIN_DIR/.." && pwd -P)"
+
+if [ -f "$_DERIVED_PREFIX/lib/opencode/libnoheap.so" ]; then
+  P="$_DERIVED_PREFIX"
+else
+  P="${PREFIX:-$_DERIVED_PREFIX}"
+fi
+
+export PREFIX="$P"
+export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
+export OPENTUI_NATIVE_LIB="$P/lib/opencode/libopentui.so"
+export BUN_PTY_LIB="$P/lib/opencode/librust_pty.so"
+
 exec "$P/bin/opencode.real" "$@"
 WRAP
 chmod 755 "$BUILD/$PREFIX_DIR/bin/opencode"
@@ -225,3 +250,6 @@ for f in bin/opencode.real lib/opencode/libnoheap.so lib/opencode/librust_pty.so
 done
 rm -rf "$TMPX"
 echo "DONE: $DEB"
+
+echo "==> 制作独立运行时 bundle"
+bash "$ROOT/scripts/build-runtime-bundle.sh" "$DEB" "$VER" "$REV"

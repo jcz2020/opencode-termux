@@ -21,12 +21,13 @@ bun 的 FFI 把它当 JS number 传给 libopentui 时超过 2^53 →
 ## STRUCTURE
 
 ```
-Makefile               入口（fetch/deb/source-deb/install/smoke/verify-abi/clean）
+Makefile               入口（fetch/deb/source-deb/runtime-bundle/install/smoke/verify-abi/clean）
 src/noheap.c           关堆 tagging 的 6 KB LD_PRELOAD shim
 scripts/
   fetch.sh             取上游 pkg.tar.xz（走 release asset API）+ .MTREE sha256 校验
-  build-deb.sh         镜像线：解包 → 编 shim → 组装 rootfs → dpkg-deb
-  build-source-deb.sh  源码线：取三份源码 → 编四个件 → 验 ABI → 打包
+  build-deb.sh         镜像线：解包 → 编 shim → 组装 rootfs → dpkg-deb → bundle
+  build-source-deb.sh  源码线：取三份源码 → 编四个件 → 验 ABI → 打包 → bundle
+  build-runtime-bundle.sh 制作独立的 tar.zst 运行时 bundle + runtime-manifest.json
   install.sh           dpkg -i（会先清理老的 dpkg-divert 手工安装）
   smoke.sh             tmux 真 tty 起 TUI，断言主界面 + 版本
   smoke-static.sh      解包 deb 做静态体检，不需要设备

@@ -1,7 +1,7 @@
 VERSION ?= 2.2.5
 REV     ?= 1
 
-.PHONY: help fetch deb install smoke smoke-static smoke-release source-deb verify-abi clean
+.PHONY: help fetch deb install smoke smoke-static smoke-release source-deb verify-abi clean runtime-bundle
 
 help:
 	@echo "── 二进制重打包线（拿上游 bionic 二进制）──"
@@ -11,6 +11,7 @@ help:
 	@echo ""
 	@echo "── 源码编译线（不依赖任何第三方打包产物）──"
 	@echo "make source-deb VERSION=2.2.5 REV=1   # 需要 NDK_ROOT / zig 0.17 / bun / rust"
+	@echo "make runtime-bundle                   # 制作独立运行时 bundle (tar.zst + manifest)"
 	@echo ""
 	@echo "── 冒烟与校验 ──"
 	@echo "make smoke                  # 在 tmux 真 tty 里起 TUI 冒烟（本机已装的包）"
@@ -31,6 +32,9 @@ install:
 
 source-deb:
 	bash scripts/build-source-deb.sh $(VERSION) $(REV)
+
+runtime-bundle:
+	bash scripts/build-runtime-bundle.sh "$$(ls -1t dist/opencode_*_aarch64.deb 2>/dev/null | head -1)" $(VERSION) $(REV)
 
 smoke:
 	bash scripts/smoke.sh

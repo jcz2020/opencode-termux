@@ -79,7 +79,10 @@ jobs:
           name: opencode-source-${{ inputs.version }}+termux${{ inputs.rev }}
           path: |
             dist/*.deb
-            dist/*.sha256
+            dist/*.deb.sha256
+            dist/*.tar.zst
+            dist/*.tar.zst.sha256
+            dist/runtime-manifest.json
           retention-days: 30
 
       - name: Publish release
@@ -98,6 +101,7 @@ jobs:
           - \`libopentui.so\`：zig 编核心 + NDK clang++ 编 yoga，静态链 libc++
           - \`librust_pty.so\`：cargo + NDK clang 交叉编（bun-pty）
           - \`libnoheap.so\`：关 bionic 堆 tagging（Android 11+ TUI 必需）
+          - 嵌入 Web UI 资产，支持 \`opencode serve\` 离线 Web 界面与 WebView
 
           不依赖任何第三方 Termux 打包产物。
 
@@ -108,11 +112,16 @@ jobs:
           dpkg -i opencode_${VERSION}+termux${REV}_aarch64.deb
           opencode --version
           \`\`\`
+
+          ## 独立运行时 Bundle（Android App 消费）
+
+          - \`runtime-${VERSION}+termux${REV}-aarch64.tar.zst\`
+          - \`runtime-manifest.json\`
           EOF
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/*.deb dist/*.sha256 --clobber
+            gh release upload "$TAG" dist/*.deb dist/*.deb.sha256 dist/*.tar.zst dist/*.tar.zst.sha256 dist/runtime-manifest.json --clobber
           else
-            gh release create "$TAG" dist/*.deb dist/*.sha256 \
+            gh release create "$TAG" dist/*.deb dist/*.deb.sha256 dist/*.tar.zst dist/*.tar.zst.sha256 dist/runtime-manifest.json \
               --title "opencode ${VERSION}+termux${REV} (源码构建)" \
               --notes-file notes.md
           fi

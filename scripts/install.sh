@@ -26,15 +26,39 @@ dpkg -i "$DEB"
 if [ ! -x "$BIN" ] || ! grep -q 'opencode.real' "$BIN" 2>/dev/null; then
   echo "==> 修复 wrapper（dpkg 装的包应自带 opencode wrapper）"
   if [ -f "$REAL" ]; then
-    cat > "$BIN" <<WRAP
-#!/data/data/com.termux/files/usr/bin/bash
+    cat > "$BIN" <<'WRAP'
+#!/system/bin/sh
 # opencode-termux wrapper
-P="\${PREFIX:-/data/data/com.termux/files/usr}"
-LD_PRELOAD="\$P/lib/opencode/libnoheap.so\${LD_PRELOAD:+:\$LD_PRELOAD}"
-OPENTUI_NATIVE_LIB="\$P/lib/opencode/libopentui.so"
-BUN_PTY_LIB="\$P/lib/opencode/librust_pty.so"
-export LD_PRELOAD OPENTUI_NATIVE_LIB BUN_PTY_LIB
-exec "\$P/bin/opencode.real" "\$@"
+set -e
+
+SELF="$0"
+if command -v realpath >/dev/null 2>&1; then
+  SELF="$(realpath "$SELF" 2>/dev/null || echo "$SELF")"
+else
+  while [ -L "$SELF" ]; do
+    _DIR="$(CDPATH= cd -- "$(dirname -- "$SELF")" && pwd -P)"
+    _TARGET="$(readlink "$SELF")"
+    case "$_TARGET" in
+      /*) SELF="$_TARGET" ;;
+      *) SELF="$_DIR/$_TARGET" ;;
+    esac
+  done
+fi
+
+_BIN_DIR="$(CDPATH= cd -- "$(dirname -- "$SELF")" && pwd -P)"
+_DERIVED_PREFIX="$(CDPATH= cd -- "$_BIN_DIR/.." && pwd -P)"
+
+if [ -f "$_DERIVED_PREFIX/lib/opencode/libnoheap.so" ]; then
+  P="$_DERIVED_PREFIX"
+else
+  P="${PREFIX:-$_DERIVED_PREFIX}"
+fi
+
+export PREFIX="$P"
+export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
+[ -f "$P/lib/opencode/libopentui.so" ] && export OPENTUI_NATIVE_LIB="$P/lib/opencode/libopentui.so"
+[ -f "$P/lib/opencode/librust_pty.so" ] && export BUN_PTY_LIB="$P/lib/opencode/librust_pty.so"
+exec "$P/bin/opencode.real" "$@"
 WRAP
     chmod 755 "$BIN"
   fi

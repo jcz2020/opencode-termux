@@ -115,7 +115,10 @@ jobs:
           name: opencode_${{ steps.v.outputs.version }}+mirror${{ steps.v.outputs.rev }}
           path: |
             dist/*.deb
-            dist/*.sha256
+            dist/*.deb.sha256
+            dist/*.tar.zst
+            dist/*.tar.zst.sha256
+            dist/runtime-manifest.json
           retention-days: 30
 
       - name: Publish release
@@ -149,9 +152,9 @@ jobs:
           EOF
           # 已存在就补传，避免重跑失败
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/*.deb dist/*.sha256 --clobber
+            gh release upload "$TAG" dist/*.deb dist/*.deb.sha256 dist/*.tar.zst dist/*.tar.zst.sha256 dist/runtime-manifest.json --clobber
           else
-            gh release create "$TAG" dist/*.deb dist/*.sha256 \
+            gh release create "$TAG" dist/*.deb dist/*.deb.sha256 dist/*.tar.zst dist/*.tar.zst.sha256 dist/runtime-manifest.json \
               --title "opencode ${VERSION}+mirror${REV} (镜像重打包)" \
               --notes-file notes.md
           fi

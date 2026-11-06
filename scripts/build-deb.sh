@@ -45,16 +45,39 @@ install -m 755 "$UP/bin/opencode"                          "$BUILD/$PREFIX_DIR/b
 install -m 644 "$UP/lib/opencode/libopencode-crhandler.so" "$BUILD/$PREFIX_DIR/lib/opencode/libopencode-crhandler.so"
 install -m 755 "$ROOT/build/shim/libnoheap.so"             "$BUILD/$PREFIX_DIR/lib/opencode/libnoheap.so"
 
-cat > "$BUILD/$PREFIX_DIR/bin/opencode" <<WRAP
-#!/data/data/com.termux/files/usr/bin/bash
-# opencode-termux wrapper
-#
-# Android 11+ 的 bionic 会给堆指针打 top-byte tag（malloc 返回 0xb4000077...），
-# bun 的 FFI 把这个指针当 JS number 传给 libopentui 时超过 2^53，于是 TUI 直接
-# 崩在 "Pointer exceeds safe integer range"。启动前关掉堆 tagging 即可。
-LD_PRELOAD="\${PREFIX:-/data/data/com.termux/files/usr}/lib/opencode/libnoheap.so\${LD_PRELOAD:+:\$LD_PRELOAD}"
-export LD_PRELOAD
-exec "\${PREFIX:-/data/data/com.termux/files/usr}/bin/opencode.real" "\$@"
+cat > "$BUILD/$PREFIX_DIR/bin/opencode" <<'WRAP'
+#!/system/bin/sh
+# opencode-termux wrapper（支持 prefix 自推导重定位）
+# 注入 libnoheap.so 关 bionic 堆 tagging，
+# 否则 Android 11+ 上 bun / libopentui 抛 "Pointer exceeds safe integer range"。
+set -e
+
+SELF="$0"
+if command -v realpath >/dev/null 2>&1; then
+  SELF="$(realpath "$SELF" 2>/dev/null || echo "$SELF")"
+else
+  while [ -L "$SELF" ]; do
+    _DIR="$(CDPATH= cd -- "$(dirname -- "$SELF")" && pwd -P)"
+    _TARGET="$(readlink "$SELF")"
+    case "$_TARGET" in
+      /*) SELF="$_TARGET" ;;
+      *) SELF="$_DIR/$_TARGET" ;;
+    esac
+  done
+fi
+
+_BIN_DIR="$(CDPATH= cd -- "$(dirname -- "$SELF")" && pwd -P)"
+_DERIVED_PREFIX="$(CDPATH= cd -- "$_BIN_DIR/.." && pwd -P)"
+
+if [ -f "$_DERIVED_PREFIX/lib/opencode/libnoheap.so" ]; then
+  P="$_DERIVED_PREFIX"
+else
+  P="${PREFIX:-$_DERIVED_PREFIX}"
+fi
+
+export PREFIX="$P"
+export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
+exec "$P/bin/opencode.real" "$@"
 WRAP
 chmod 755 "$BUILD/$PREFIX_DIR/bin/opencode"
 
@@ -102,3 +125,6 @@ echo "    files:"
 dpkg-deb -c "$DEB" | awk '{print "      " $6}' | grep -v '/$'
 printf '%s  %s\n' "$(sha256sum "$DEB" | cut -d' ' -f1)" "$DEB" > "$DEB.sha256"
 echo "==> $DEB"
+
+echo "==> 制作独立运行时 bundle"
+bash "$ROOT/scripts/build-runtime-bundle.sh" "$DEB" "$VER" "mirror$REV"
