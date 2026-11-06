@@ -144,7 +144,7 @@ The source build installs into `$PREFIX`:
 | Path | Role |
 |---|---|
 | `bin/opencode` | wrapper: sets three env vars, then execs the real binary |
-| `bin/opencode.real` | the actual opencode binary (210 MB) |
+| `bin/opencode.real` | the actual opencode binary (~200 MiB) |
 | `lib/opencode/libnoheap.so` | disables bionic heap tagging (the key fix) |
 | `lib/opencode/libopentui.so` | our bionic build of the TUI native library |
 | `lib/opencode/librust_pty.so` | our bionic build of the PTY library |
