@@ -104,7 +104,12 @@ export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
 [ -f "$P/lib/opencode/libopentui.so" ] && export OPENTUI_NATIVE_LIB="$P/lib/opencode/libopentui.so"
 [ -f "$P/lib/opencode/librust_pty.so" ] && export BUN_PTY_LIB="$P/lib/opencode/librust_pty.so"
 
-exec "$P/bin/opencode.real" "$@"
+# 双重保障启动：若直接 exec 遇到权限限制，尝试通过 system linker 启动
+if [ -x "/system/bin/linker64" ] && [ -f "$P/bin/opencode.real" ]; then
+  exec /system/bin/linker64 "$P/bin/opencode.real" "$@"
+else
+  exec "$P/bin/opencode.real" "$@"
+fi
 WRAP
 chmod 755 "$STAGE/usr/bin/opencode" "$STAGE/usr/bin/opencode.real"
 

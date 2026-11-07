@@ -190,7 +190,11 @@ export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
 export OPENTUI_NATIVE_LIB="$P/lib/opencode/libopentui.so"
 export BUN_PTY_LIB="$P/lib/opencode/librust_pty.so"
 
-exec "$P/bin/opencode.real" "$@"
+if [ -x "/system/bin/linker64" ] && [ -f "$P/bin/opencode.real" ]; then
+  exec /system/bin/linker64 "$P/bin/opencode.real" "$@"
+else
+  exec "$P/bin/opencode.real" "$@"
+fi
 WRAP
 chmod 755 "$BUILD/$PREFIX_DIR/bin/opencode"
 
