@@ -7,7 +7,7 @@
 > `docs/LESSONS.md` 踩坑全集 · `docs/spike-android-bun.md` 开发记录。
 > 改用户可见行为时同步 README。
 
-**现状**：`v2.2.6+termux1` 已发布并通过 `make smoke`；源码线已在本机和 CI 跑通。
+**现状**：`v2.2.6+termux2` 已发布并通过 `make smoke`；源码线已在本机和 CI 跑通。
 已实现一键安装脚本（`install-termux.sh`，国内多镜像加速）与 `opencode update` 拦截接管。
 
 ## 为什么需要 shim（别把它删了）
