@@ -87,6 +87,36 @@ connect your own key with `/connect`.
 
 ---
 
+## Usage (TUI & Web UI Dual Modes)
+
+This distribution not only supports the terminal TUI, but also **inlines the complete official Web UI assets into the binary**, allowing graphical browser access on your phone, tablet, or desktop!
+
+### 1. Terminal Mode (TUI)
+```sh
+opencode
+```
+Launches the full interactive terminal TUI with syntax highlighting and diff views.
+
+### 2. Browser GUI Mode (Web UI)
+Typing and reviewing code on a small touch screen in terminal can be cumbersome. Run the embedded web server to access the modern web interface from your phone's browser (Chrome, Kiwi, Firefox) or any device on your local network:
+
+```sh
+# Local access only (phone browser)
+opencode serve
+
+# LAN access (accessible from tablets or laptops on the same Wi-Fi)
+opencode serve --hostname 0.0.0.0 --port 4096
+```
+
+The terminal will print the access URL (e.g. `http://127.0.0.1:4096`). Open it in your browser to enjoy:
+- 🌟 **Full Offline Inlining**: All frontend assets are bundled with the binary, completely independent of external CDNs;
+- 📱 **Multi-Project & Tab Switching**: File tree browsing, Markdown rendering, and visual Git diff reviews;
+- 🔒 **Built-in Authentication**: Protected by server password (`OPENCODE_SERVER_PASSWORD`) or one-time pairing codes.
+
+> 💡 **Tip**: If you prefer a native Android experience (one-tap launch, background foreground service, full edge-to-edge gestures) without touching the command line, check out our standalone companion app [OpenCode for Android](https://github.com/jcz2020/opencode-app).
+
+---
+
 ## FAQ
 
 **Q: `opencode: command not found` after installing?**
