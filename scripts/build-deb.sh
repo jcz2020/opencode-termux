@@ -44,6 +44,7 @@ mkdir -p "$BUILD/$PREFIX_DIR/bin" "$BUILD/$PREFIX_DIR/lib/opencode" "$BUILD/DEBI
 install -m 755 "$UP/bin/opencode"                          "$BUILD/$PREFIX_DIR/bin/opencode.real"
 install -m 644 "$UP/lib/opencode/libopencode-crhandler.so" "$BUILD/$PREFIX_DIR/lib/opencode/libopencode-crhandler.so"
 install -m 755 "$ROOT/build/shim/libnoheap.so"             "$BUILD/$PREFIX_DIR/lib/opencode/libnoheap.so"
+install -m 755 "$ROOT/scripts/install-termux.sh"           "$BUILD/$PREFIX_DIR/lib/opencode/opencode-updater.sh"
 
 cat > "$BUILD/$PREFIX_DIR/bin/opencode" <<'WRAP'
 #!/system/bin/sh
@@ -74,6 +75,15 @@ if [ -f "$_DERIVED_PREFIX/lib/opencode/libnoheap.so" ]; then
 else
   P="${PREFIX:-$_DERIVED_PREFIX}"
 fi
+
+case "${1:-}" in
+  update|upgrade)
+    shift
+    if [ -f "$P/lib/opencode/opencode-updater.sh" ]; then
+      exec /data/data/com.termux/files/usr/bin/bash "$P/lib/opencode/opencode-updater.sh" "$@"
+    fi
+    ;;
+esac
 
 export PREFIX="$P"
 export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
@@ -112,7 +122,8 @@ find "$BUILD" -type f -exec chmod 644 {} +
 chmod 755 "$BUILD/DEBIAN/postinst" \
           "$BUILD/$PREFIX_DIR/bin/opencode" \
           "$BUILD/$PREFIX_DIR/bin/opencode.real" \
-          "$BUILD/$PREFIX_DIR/lib/opencode/libnoheap.so"
+          "$BUILD/$PREFIX_DIR/lib/opencode/libnoheap.so" \
+          "$BUILD/$PREFIX_DIR/lib/opencode/opencode-updater.sh"
 
 echo "==> 打包"
 mkdir -p "$OUT"

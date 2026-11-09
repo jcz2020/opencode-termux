@@ -44,39 +44,48 @@ This project fixes it, and **depends on no third-party Termux packaging**:
 - [Termux](https://termux.dev) (F-Droid or GitHub build)
 - **aarch64** (most modern phones; only aarch64 packages are published)
 
-### One-liner
+### One-liner Installation & Upgrade (Recommended)
+
+Automatic mirror acceleration for mainland China networks with seamless failover and SHA-256 verification:
 
 ```sh
-pkg install -y curl
-curl -LO "https://github.com/jcz2020/opencode-termux/releases/download/v2.2.5+termux2/opencode_2.2.5+termux2_aarch64.deb"
-dpkg -i opencode_2.2.5+termux2_aarch64.deb
+curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/jcz2020/opencode-termux/main/scripts/install-termux.sh | bash
 ```
 
-### If `github.com` is unreachable
+> **Direct / International connections**:
+> ```sh
+> curl -fsSL https://raw.githubusercontent.com/jcz2020/opencode-termux/main/scripts/install-termux.sh | bash
+> ```
 
-`api.github.com` is usually reachable even when `github.com` isn't. Use the release
-asset API:
+The installer detects your network environment, picks the fastest available candidate, and verifies the package hash. Re-running it acts as an in-place upgrade tool.
+
+### Upgrading OpenCode
+
+After installation, the standard update command is intercepted and securely upgraded to our latest Termux package:
 
 ```sh
-id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.5+termux2" \
+opencode update            # check and upgrade to the latest compatible release
+opencode update --check    # check for available updates without installing
+```
+
+### Manual Installation
+
+To download the `.deb` package manually:
+
+```sh
+# Current latest: v2.2.6+termux1
+pkg install -y curl jq
+id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.6+termux1" \
      | jq -r '.assets[] | select(.name|endswith(".deb")) | .id')
-# -C - resumes a partial download; just re-run the same line if the network drops
 curl -sSL -C - -H 'Accept: application/octet-stream' -o opencode.deb \
   "https://api.github.com/repos/jcz2020/opencode-termux/releases/assets/$id"
 dpkg -i opencode.deb
 ```
 
-Install `jq` with `pkg install jq` if you don't have it.
-
-> On a flaky connection `curl` can fail with `SSL_read: unexpected eof while reading`
-> and leave a **truncated** deb; `dpkg -i` then reports `unexpected end of file`.
-> Just re-run the same `curl` line — with `-C -` it picks up where it stopped.
-> Check `ls -l opencode.deb`: it should be around 68 MB.
-
 ### Verify
 
 ```sh
-opencode --version      # → opencode v2.2.5
+opencode --version      # → opencode v2.2.6
 oc                      # shortcut for opencode
 ```
 

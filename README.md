@@ -43,38 +43,50 @@ bun 的 FFI 把这个指针当 JS number 传给 libopentui，数值超过 `2^53`
 - [Termux](https://termux.dev)（F-Droid 版和 GitHub 版都行）
 - 架构 **aarch64**（现在的安卓手机基本都是；本项目只提供 aarch64 包）
 
-### 一条命令
+### 一键安装与升级（推荐）
+
+国内网络自动启用加速镜像与多通道重试：
 
 ```sh
-pkg install -y curl
-curl -LO "https://github.com/jcz2020/opencode-termux/releases/download/v2.2.5+termux2/opencode_2.2.5+termux2_aarch64.deb"
-dpkg -i opencode_2.2.5+termux2_aarch64.deb
+curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/jcz2020/opencode-termux/main/scripts/install-termux.sh | bash
 ```
 
-### `github.com` 连不上时（国内网络常见）
+> **海外 / 直连环境**：
+> ```sh
+> curl -fsSL https://raw.githubusercontent.com/jcz2020/opencode-termux/main/scripts/install-termux.sh | bash
+> ```
 
-本机实测 `github.com` 直连不通，但 `api.github.com` 能通。改走 release 的 asset API：
+脚本会自动感知网络环境、优选加速通道并校验 SHA-256。已有安装时直接作为升级工具运行。
+
+### 日常检查与更新
+
+安装后，输入官方更新命令即可直接接管并升级到本项目最新适配版本：
 
 ```sh
-id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.5+termux2" \
+opencode update            # 检查并更新到最新版本
+opencode update --check    # 仅检查是否有新版本
+```
+
+> 💡 **安全拦截保障**：本包已深度拦截官方更新通道，将检查源与更新器重定向至本项目适配库，绝不会下载官方 Linux glibc 脚本导致 Termux 环境崩溃；国内网络下自动并发多源加速与断点续传。
+
+### 手动安装方式
+
+如果想手动下载 `.deb` 包安装：
+
+```sh
+# 当前最新版本：v2.2.6+termux1
+pkg install -y curl jq
+id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.6+termux1" \
      | jq -r '.assets[] | select(.name|endswith(".deb")) | .id')
-# -C - 支持断点续传；网络抖断了就再跑一次同一条命令
 curl -sSL -C - -H 'Accept: application/octet-stream' -o opencode.deb \
   "https://api.github.com/repos/jcz2020/opencode-termux/releases/assets/$id"
 dpkg -i opencode.deb
 ```
 
-没装 `jq` 就先 `pkg install jq`。
-
-> 网络不稳的时候，`curl` 可能报 `SSL_read: unexpected eof while reading`，留下一个
-> **不完整**的 deb，`dpkg -i` 会说 `unexpected end of file`。
-> 重跑同一条 `curl` 就行 —— 带上 `-C -` 它会接着上次的位置继续下，不会从头再来。
-> 下完可以核对一下大小：`ls -l opencode.deb` 应该在 68 MB 左右，明显偏小就是没下完。
-
 ### 装完验证
 
 ```sh
-opencode --version      # → opencode v2.2.5
+opencode --version      # → opencode v2.2.6
 oc                      # 短链，和 opencode 完全等价
 ```
 

@@ -29,7 +29,7 @@ echo "==> 文件齐全"
 # 两种包布局：
 #   源码线 → 自带 libopentui.so / librust_pty.so
 #   重打包线 → 只有上游二进制 + libnoheap.so
-REQUIRED="bin/opencode bin/opencode.real lib/opencode/libnoheap.so"
+REQUIRED="bin/opencode bin/opencode.real lib/opencode/libnoheap.so lib/opencode/opencode-updater.sh"
 if [ -f "$P/lib/opencode/libopentui.so" ]; then
   SOURCE_LINE=1
   REQUIRED="$REQUIRED lib/opencode/librust_pty.so lib/opencode/libopentui.so"

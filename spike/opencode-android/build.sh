@@ -77,6 +77,103 @@ p.write_text(s)
 print("   patched build.ts")
 PY
 
+echo "==> 1.5/3 补丁 packages/cli/src/services/updater.ts（重定向更新检测与升级命令到本项目）"
+python3 - <<'PY'
+import pathlib, sys
+p = pathlib.Path("packages/cli/src/services/updater.ts")
+if not p.exists():
+    print("   updater.ts not found, skipping patch")
+    sys.exit(0)
+
+s = p.read_text()
+if "OpenCode-Termux" in s:
+    print("   already patched updater.ts")
+    sys.exit(0)
+
+# (a) method() 增加 android / termux 检测，映射为 "curl"
+old_m = "  const method = Effect.fnUntraced(function* () {\n    if (executable === curlBinary) return \"curl\""
+new_m = ("  const method = Effect.fnUntraced(function* () {\n"
+         "    if (process.platform === \"android\" || executable.includes(\"/com.termux/\")) return \"curl\"\n"
+         "    if (executable === curlBinary) return \"curl\"")
+if old_m in s:
+    s = s.replace(old_m, new_m, 1)
+
+# (b) release() 重定向到本项目 GitHub Release，只认我们发布的新包
+old_r = "  const release = Effect.fnUntraced(function* (method?: Method) {\n    const distribution = method === \"brew\" ? \"homebrew\" : \"npm\""
+new_r = ("  const release = Effect.fnUntraced(function* (method?: Method) {\n"
+         "    if (process.platform === \"android\" || executable.includes(\"/com.termux/\")) {\n"
+         "      const response = yield* Effect.tryPromise({\n"
+         "        try: (signal) =>\n"
+         "          fetch(\"https://api.github.com/repos/jcz2020/opencode-termux/releases/latest\", {\n"
+         "            headers: { Accept: \"application/vnd.github.v3+json\", \"User-Agent\": \"OpenCode-Termux\" },\n"
+         "            signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),\n"
+         "          }),\n"
+         "        catch: (cause) =>\n"
+         "          new UpgradeError(\n"
+         "            {\n"
+         "              title: \"Could not check for OpenCode updates\",\n"
+         "              detail: errorDetail(cause),\n"
+         "              retry: \"Check your network, then run opencode update again.\",\n"
+         "            },\n"
+         "            { cause },\n"
+         "          ),\n"
+         "      })\n"
+         "      if (!response.ok)\n"
+         "        return yield* Effect.fail(\n"
+         "          new UpgradeError({\n"
+         "            title: \"Could not check for OpenCode updates\",\n"
+         "            detail: `The update service returned HTTP ${response.status}.`,\n"
+         "            retry: \"Try again in a few minutes.\",\n"
+         "          }),\n"
+         "        )\n"
+         "      const data: any = yield* Effect.tryPromise({\n"
+         "        try: () => response.json(),\n"
+         "        catch: (cause) =>\n"
+         "          new UpgradeError(\n"
+         "            {\n"
+         "              title: \"Could not read OpenCode update information\",\n"
+         "              detail: errorDetail(cause),\n"
+         "              retry: \"Try again in a few minutes.\",\n"
+         "            },\n"
+         "            { cause },\n"
+         "          ),\n"
+         "      })\n"
+         "      const tag = String(data?.tag_name || \"\")\n"
+         "      const v = tag.replace(/^v/, \"\").replace(/\\+termux[0-9]+$/, \"\")\n"
+         "      if (!v)\n"
+         "        return yield* Effect.fail(\n"
+         "          new UpgradeError({\n"
+         "            title: \"Could not read OpenCode update information\",\n"
+         "            detail: \"No release tag found in repository.\",\n"
+         "            retry: \"Try again in a few minutes.\",\n"
+         "          }),\n"
+         "        )\n"
+         "      return { package: \"opencode\", version: v }\n"
+         "    }\n"
+         "    const distribution = method === \"brew\" ? \"homebrew\" : \"npm\"")
+if old_r in s:
+    s = s.replace(old_r, new_r, 1)
+
+# (c) upgrade() 执行本项目专属更新脚本
+old_u = "        if (method === \"curl\") {\n          const bash = yield* installerBash()"
+new_u = ("        if (method === \"curl\") {\n"
+         "          if (process.platform === \"android\" || executable.includes(\"/com.termux/\")) {\n"
+         "            const updater = path.resolve(path.dirname(executable), \"..\", \"lib\", \"opencode\", \"opencode-updater.sh\")\n"
+         "            return yield* runUpgrade({\n"
+         "              method,\n"
+         "              command: [\"bash\", updater],\n"
+         "              displayCommand: [\"opencode\", \"update\"],\n"
+         "              title: \"OpenCode update failed\",\n"
+         "            })\n"
+         "          }\n"
+         "          const bash = yield* installerBash()")
+if old_u in s:
+    s = s.replace(old_u, new_u, 1)
+
+p.write_text(s)
+print("   patched updater.ts")
+PY
+
 echo "==> 2/3 补丁 node_modules/@opentui/core（允许 android 资产目标）"
 python3 - <<'PY'
 import os, pathlib

@@ -1,4 +1,4 @@
-VERSION ?= 2.2.5
+VERSION ?= 2.2.6
 REV     ?= 1
 
 .PHONY: help fetch deb install smoke smoke-static smoke-release source-deb verify-abi clean runtime-bundle
@@ -16,7 +16,7 @@ help:
 	@echo "── 冒烟与校验 ──"
 	@echo "make smoke                  # 在 tmux 真 tty 里起 TUI 冒烟（本机已装的包）"
 	@echo "make smoke-static           # 解包 dist/*.deb 做静态体检（不需要设备）"
-	@echo "make smoke-release TAG=v2.2.5+termux2   # 从 release 拉 deb 装到设备再冒烟"
+	@echo "make smoke-release TAG=v2.2.6+termux1   # 从 release 拉 deb 装到设备再冒烟"
 	@echo "make verify-abi             # 只跑 FFI 符号/依赖校验"
 	@echo ""
 	@echo "make clean                  # 清 build/ dist/"

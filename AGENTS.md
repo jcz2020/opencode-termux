@@ -7,7 +7,8 @@
 > `docs/LESSONS.md` 踩坑全集 · `docs/spike-android-bun.md` 开发记录。
 > 改用户可见行为时同步 README。
 
-**现状**：`v2.2.5+termux2` 已发布并通过 `make smoke`；源码线已在本机和 CI 跑通。
+**现状**：`v2.2.6+termux1` 已发布并通过 `make smoke`；源码线已在本机和 CI 跑通。
+已实现一键安装脚本（`install-termux.sh`，国内多镜像加速）与 `opencode update` 拦截接管。
 
 ## 为什么需要 shim（别把它删了）
 
@@ -28,6 +29,7 @@ scripts/
   build-deb.sh         镜像线：解包 → 编 shim → 组装 rootfs → dpkg-deb → bundle
   build-source-deb.sh  源码线：取三份源码 → 编四个件 → 验 ABI → 打包 → bundle
   build-runtime-bundle.sh 制作独立的 tar.zst 运行时 bundle + runtime-manifest.json
+  install-termux.sh    一键安装/更新脚本（国内网络自动多源镜像加速与断点续传）
   install.sh           dpkg -i（会先清理老的 dpkg-divert 手工安装）
   smoke.sh             tmux 真 tty 起 TUI，断言主界面 + 版本
   smoke-static.sh      解包 deb 做静态体检，不需要设备
@@ -54,6 +56,7 @@ cache/ build/ dist/   gitignore；`make clean` 会连 dist/ 一起删
 | `lib/opencode/libnoheap.so` | ✓ | ✓ |
 | `lib/opencode/libopentui.so` + `opentui.h` | ✓（自编） | — |
 | `lib/opencode/librust_pty.so` | ✓（自编） | — |
+| `lib/opencode/opencode-updater.sh` | ✓（更新脚本） | ✓ |
 | `lib/opencode/libopencode-crhandler.so` | — | ✓（上游自带） |
 
 - **真二进制必须留在 `bin/`**：它有 `RUNPATH=$ORIGIN/../lib/opencode`；镜像线的上游

@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '上游 opencode 版本（如 2.2.5，对应 tag v2.2.5）'
+        description: '上游 opencode 版本（如 2.2.6，对应 tag v2.2.6）'
         required: true
-        default: '2.2.5'
+        default: '2.2.6'
       rev:
         description: '本项目修订号（termux<N>）'
         required: true
@@ -17,6 +17,10 @@ on:
         description: '构建后创建 release'
         required: false
         default: 'true'
+      allow_downgrade:
+        description: '允许发布低于当前最高版本的旧版（强制标记为 latest=false）'
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
@@ -91,9 +95,35 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
           REV: ${{ inputs.rev }}
+          ALLOW_DOWNGRADE: ${{ inputs.allow_downgrade }}
         run: |
           set -euo pipefail
           TAG="v${VERSION}+termux${REV}"
+
+          # 获取已发布的源码线版本列表，计算最高已发版本
+          ours=$(gh release list --limit 100 --json tagName --jq '.[].tagName' || true)
+          highest_ver=$(grep -oE '^v[0-9]+\.[0-9]+\.[0-9]+\+termux[0-9]+$' <<<"$ours" \
+            | sed -E 's/^v([0-9.]+)\+termux[0-9]+$/\1/' | sort -V | tail -1 || true)
+
+          is_latest=false
+          if [ -z "$highest_ver" ]; then
+            is_latest=true
+          else
+            cmp=$(printf '%s\n%s\n' "$highest_ver" "$VERSION" | sort -V | tail -1)
+            if [ "$cmp" = "$VERSION" ]; then
+              # VERSION >= highest_ver
+              is_latest=true
+            else
+              if [ "$ALLOW_DOWNGRADE" != "true" ]; then
+                echo "ERROR: 试图发布旧版本 $VERSION，而当前已有更高版本 $highest_ver。" >&2
+                echo "       若确定要构建旧版本分支，请在 workflow_dispatch 中设置 allow_downgrade=true。" >&2
+                exit 1
+              fi
+              echo "WARN: 允许发布旧版本 $VERSION（当前最高版本为 $highest_ver），此 Release 将显式标记为 latest=false。"
+              is_latest=false
+            fi
+          fi
+
           cat > notes.md <<EOF
           Termux/aarch64 的 opencode **${VERSION}**，**全部从源码编译**（bionic）。
 
@@ -105,7 +135,13 @@ jobs:
 
           不依赖任何第三方 Termux 打包产物。
 
-          ## 安装
+          ## 一键安装 / 更新（国内自动加速）
+
+          \`\`\`sh
+          curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install-termux.sh | bash
+          \`\`\`
+
+          ## 手动安装
 
           \`\`\`sh
           curl -LO https://github.com/${{ github.repository }}/releases/download/${TAG}/opencode_${VERSION}+termux${REV}_aarch64.deb
@@ -118,10 +154,23 @@ jobs:
           - \`runtime-${VERSION}+termux${REV}-aarch64.tar.zst\`
           - \`runtime-manifest.json\`
           EOF
+
+          latest_flag="--latest=false"
+          if [ "$is_latest" = "true" ]; then
+            latest_flag="--latest"
+          fi
+
           if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在，更新资产..."
             gh release upload "$TAG" dist/*.deb dist/*.deb.sha256 dist/*.tar.zst dist/*.tar.zst.sha256 dist/runtime-manifest.json --clobber
+            if [ "$is_latest" = "true" ]; then
+              gh release edit "$TAG" --latest
+            else
+              gh release edit "$TAG" --latest=false
+            fi
           else
             gh release create "$TAG" dist/*.deb dist/*.deb.sha256 dist/*.tar.zst dist/*.tar.zst.sha256 dist/runtime-manifest.json \
               --title "opencode ${VERSION}+termux${REV} (源码构建)" \
-              --notes-file notes.md
+              --notes-file notes.md \
+              $latest_flag
           fi

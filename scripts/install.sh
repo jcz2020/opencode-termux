@@ -54,6 +54,15 @@ else
   P="${PREFIX:-$_DERIVED_PREFIX}"
 fi
 
+case "${1:-}" in
+  update|upgrade)
+    shift
+    if [ -f "$P/lib/opencode/opencode-updater.sh" ]; then
+      exec /data/data/com.termux/files/usr/bin/bash "$P/lib/opencode/opencode-updater.sh" "$@"
+    fi
+    ;;
+esac
+
 export PREFIX="$P"
 export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
 [ -f "$P/lib/opencode/libopentui.so" ] && export OPENTUI_NATIVE_LIB="$P/lib/opencode/libopentui.so"

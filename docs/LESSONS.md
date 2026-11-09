@@ -220,6 +220,33 @@
   「我这台机器上次不行」和「它就是不行」是两回事，文档要写后者，
   不然读者会照着一条过期的结论一直绕路。
 
+### 23. 旧版构建发布抢占 GitHub Latest Release
+
+- **怎么发现的**：`2.2.6+termux1` 发布后，下午有人手动跑了一次 `2.2.5` 的构建（`2.2.5+termux3`），
+  GitHub 的 Release 页面和 API 立刻把 2.2.5 标成了 **Latest**！
+  更严重的是，`opencode-app` 的运行时安装器也是根据 `releases/latest/download/runtime-manifest.json` 下载的，
+  结果所有用户的 App 都被回退成了旧版。
+- **真因**：GitHub 默认根据 `published_at`（发布时间戳）决定谁是 `Latest`，根本不懂 SemVer。
+  后发布的旧版本时间戳更新，直接挤掉了先发布的更高版本。
+- **怎么修**：
+  1. 线上用 `gh release edit v2.2.6+termux1 --latest` 纠正当前状态；
+  2. CI 工作流（`build-deb-source.yml`）发布前比对已发版本号，若版本号 `<` 最高已发版本，
+     默认阻断；必须显式传 `allow_downgrade=true` 才能构建，且发布时强制带 `--latest=false`。
+- **教训**：**不能把时间先后当成版本大小**。自动发布脚本必须显式管理 `--latest` 标志，
+  防守旧分支或手工补发把线上 Latest 标乱。
+
+### 24. 官方更新器会破坏 Termux 环境，且镜像断点续传有 504 陷阱
+
+- **怎么发现的**：用户执行官方 `opencode update` 时，官方试图运行 `curl https://opencode.ai/v2/install`，
+  下载 x86/glibc 二进制覆盖掉现有的 bionic 环境。另外，用 `ghfast.top` 等镜像下载 90 MB deb 时，
+  若中途断开带 `Range` 续传，经常遇到 504 Gateway Timeout 或返回 HTML 防爬验证页。
+- **怎么修**：
+  1. **双重拦截**：wrapper 层拦截 `update|upgrade` 直接转到 Termux 专属更新器；
+     同时在源码中将更新检查与更新动作打补丁对齐到本项目的 GitHub Release；
+  2. **下载防御**：下载大文件时检查首 8 字节是否为 `!<arch>\n`，若为 HTML 验证页立即清除；
+     镜像续传失败时自动回退到 GitHub Release Asset API 签名直链并全新重试。
+- **教训**：**第三方镜像只能做传输加速，绝不能当成可信源**。SHA-256 校验和格式探测是底线。
+
 ---
 
 ## 六、可以推广的几条

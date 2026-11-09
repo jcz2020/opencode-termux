@@ -152,6 +152,8 @@ install -m 755 "$LIBPTY"                 "$BUILD/$PREFIX_DIR/lib/opencode/librus
 install -m 644 "$LIBOTUI"                "$BUILD/$PREFIX_DIR/lib/opencode/libopentui.so"
 install -m 644 "$WORK/otui/packages/native/include/opentui.h" \
   "$BUILD/$PREFIX_DIR/lib/opencode/opentui.h" 2>/dev/null || true
+install -m 755 "$ROOT/scripts/install-termux.sh" \
+  "$BUILD/$PREFIX_DIR/lib/opencode/opencode-updater.sh"
 
 cat > "$BUILD/$PREFIX_DIR/bin/opencode" <<'WRAP'
 #!/system/bin/sh
@@ -160,6 +162,7 @@ cat > "$BUILD/$PREFIX_DIR/bin/opencode" <<'WRAP'
 #    "Pointer exceeds safe integer range"
 #  * OPENTUI_NATIVE_LIB：把 @opentui/core 的原生库指到我们自编的 libopentui.so
 #  * BUN_PTY_LIB：把 bun-pty 指到我们自编的 librust_pty.so
+#  * 拦截 update/upgrade：直接调用 Termux 专用更新器，防止被官方脚本覆盖
 set -e
 
 SELF="$0"
@@ -184,6 +187,20 @@ if [ -f "$_DERIVED_PREFIX/lib/opencode/libnoheap.so" ]; then
 else
   P="${PREFIX:-$_DERIVED_PREFIX}"
 fi
+
+case "${1:-}" in
+  update|upgrade)
+    shift
+    if [ -f "$P/lib/opencode/opencode-updater.sh" ]; then
+      exec /data/data/com.termux/files/usr/bin/bash "$P/lib/opencode/opencode-updater.sh" "$@"
+    elif [ -f "$P/../scripts/install-termux.sh" ]; then
+      exec /data/data/com.termux/files/usr/bin/bash "$P/../scripts/install-termux.sh" "$@"
+    else
+      echo "ERROR: 未找到更新脚本 $P/lib/opencode/opencode-updater.sh" >&2
+      exit 1
+    fi
+    ;;
+esac
 
 export PREFIX="$P"
 export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
@@ -232,7 +249,8 @@ find "$BUILD" -type f -exec chmod 644 {} +
 chmod 755 "$BUILD/DEBIAN/postinst" "$BUILD/$PREFIX_DIR/bin/opencode" \
           "$BUILD/$PREFIX_DIR/bin/opencode.real" \
           "$BUILD/$PREFIX_DIR/lib/opencode/libnoheap.so" \
-          "$BUILD/$PREFIX_DIR/lib/opencode/librust_pty.so"
+          "$BUILD/$PREFIX_DIR/lib/opencode/librust_pty.so" \
+          "$BUILD/$PREFIX_DIR/lib/opencode/opencode-updater.sh"
 
 # ── 4. 打包 + 自检 ──────────────────────────────────────────────
 echo "==> dpkg-deb"
