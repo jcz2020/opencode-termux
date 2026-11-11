@@ -13,6 +13,7 @@ SRC="${1:?opencode source dir}"
 LIBOPENTUI="${2:?libopentui.so (bionic)}"
 LIBPTY="${3:?librust_pty.so (bionic)}"
 RELEASE="${4:-bun-v1.4.4}"
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
 cd "$SRC"
 
@@ -230,6 +231,12 @@ BIN="$OUT/bin/opencode"
 [ -f "$BIN" ] || { echo "ERROR: 没有 $BIN" >&2; exit 1; }
 file "$BIN"
 echo "size: $(stat -c%s "$BIN") bytes"
+
+# bun 的 android 运行时模板本身是 16 KB 对齐的；--compile 只是把 JS 资产
+# 追加上去。这里做硬性门禁：若上游 bun 模板退化为 4 KB 对齐，立即失败，
+# 不把不兼容 Android 15/16 的二进制发出去。
+echo "==> 16 KB 页对齐检查（Android 15/16）"
+python3 "$REPO_ROOT/scripts/check-16kb-pages.py" "$BIN"
 
 echo "==> 记录依赖库（运行时由 wrapper 注入）"
 echo "libopentui: $LIBOPENTUI"

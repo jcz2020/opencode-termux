@@ -11,6 +11,7 @@ set -euo pipefail
 SRC="${1:?bun-pty source dir}"
 NDK="${2:?NDK root}"
 API="${3:-30}"
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 HOSTBIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
 CLANG="$HOSTBIN/aarch64-linux-android${API}-clang"
 
@@ -44,12 +45,17 @@ echo "==> cargo build (aarch64-linux-android)"
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CLANG"
 export CC_aarch64_linux_android="$CLANG"
 export AR_aarch64_linux_android="$HOSTBIN/llvm-ar"
+# Android 15/16 的 16 KB 页设备要求 PT_LOAD 的 p_align >= 0x4000。
+# NDK r27 的 clang 默认按 4 KB 链接，必须通过 rustc 把参数透传给链接器。
+PAGE_RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384"
+export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }$PAGE_RUSTFLAGS"
 cargo build --release --target aarch64-linux-android --offline
 
 SO="target/aarch64-linux-android/release/librust_pty.so"
 [ -f "$SO" ] || { echo "ERROR: 没产出 $SO" >&2; exit 1; }
 file "$SO"
 echo "size: $(stat -c%s "$SO") bytes"
+python3 "$REPO_ROOT/scripts/check-16kb-pages.py" "$SO"
 echo "--- NEEDED"
 readelf -d "$SO" | grep -E 'NEEDED|SONAME' || true
 echo "DONE: $SRC/rust-pty/$SO"

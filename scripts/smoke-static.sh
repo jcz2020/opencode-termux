@@ -14,6 +14,7 @@ set -euo pipefail
 DEB="${1:?用法: smoke-static.sh <deb>}"
 CORE_DIR="${2:-}"
 PTY_DIR="${3:-}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -73,6 +74,17 @@ for f in bin/opencode.real lib/opencode/libnoheap.so lib/opencode/librust_pty.so
 done
 [ "$fail" = 0 ] && ok "全部 ELF 都是 aarch64 且只依赖 bionic"
 
+echo "==> 16 KB 页对齐（Android 15/16）"
+ELF_CHECK=("$P/bin/opencode.real")
+for so in "$P"/lib/opencode/*.so; do
+  [ -e "$so" ] && ELF_CHECK+=("$so")
+done
+if python3 "$HERE/check-16kb-pages.py" "${ELF_CHECK[@]}"; then
+  ok "所有 PT_LOAD 的 p_align 均 >= 0x4000"
+else
+  bad "存在 p_align < 0x4000 的 PT_LOAD"
+fi
+
 echo "==> 版本字符串"
 # 版本号被 bun 以 define 形式编进去，表现为裸的 "x.y.z" 字符串。
 # 注意：不要用 `strings | grep -q`（grep -q 提前退出会让 strings 收到 SIGPIPE，
@@ -92,7 +104,6 @@ fi
 
 if [ "$SOURCE_LINE" = 1 ] && [ -n "$CORE_DIR" ] && [ -n "$PTY_DIR" ]; then
   echo "==> FFI 符号"
-  HERE="$(cd "$(dirname "$0")" && pwd)"
   bash "$HERE/verify-abi.sh" \
     "$P/lib/opencode/libopentui.so" \
     "$P/lib/opencode/librust_pty.so" "$CORE_DIR" "$PTY_DIR" || fail=1

@@ -13,10 +13,14 @@
 # 用法：build.sh <opentui-src> <ndk-root> [api=30]
 set -euo pipefail
 
-GITHUB_WORKSPACE="${GITHUB_WORKSPACE:-$(cd "$(dirname "$0")/../../.." && pwd)}"
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+GITHUB_WORKSPACE="${GITHUB_WORKSPACE:-$REPO_ROOT}"
 SRC="${1:?opentui source dir}"
 NDK="${2:?NDK root (…/android-ndk-r27c)}"
 API="${3:-30}"
+# Android 15/16 的 16 KB 页设备要求所有 PT_LOAD 的 p_align >= 0x4000。
+# NDK r27 及更早版本默认仍是 4 KB 对齐，必须显式传给链接器（r28+ 默认 16 KB）。
+PAGE_LDFLAGS=(-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384)
 SYSROOT="$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
 HOSTBIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
 CXX="$HOSTBIN/aarch64-linux-android${API}-clang++"
@@ -192,6 +196,7 @@ echo "    $n 个 C++ 目标文件"
 echo "==> 3/3 链接 libopentui.so"
 OUT="$NATIVE/lib/$TARGET/libopentui.so"
 "$CXX" -target "aarch64-linux-android$API" -shared -fPIC -o "$OUT" \
+  "${PAGE_LDFLAGS[@]}" \
   -Wl,--whole-archive "$A" -Wl,--no-whole-archive "$OBJ"/*.o \
   -Wl,-soname,libopentui.so -static-libstdc++ -static-libgcc -lm -ldl
 
@@ -199,6 +204,7 @@ echo "==> 自检"
 file "$OUT"
 echo "size: $(stat -c%s "$OUT") bytes"
 [ "$(stat -c%s "$OUT")" -gt 5000000 ] || { echo "ERROR: 产物太小" >&2; exit 1; }
+python3 "$REPO_ROOT/scripts/check-16kb-pages.py" "$OUT"
 
 undef="$(readelf --dyn-syms -W "$OUT" | awk '$7=="UND" && $8 ~ /^_Z/ {print $8}' | sort -u)"
 if [ -n "$undef" ]; then

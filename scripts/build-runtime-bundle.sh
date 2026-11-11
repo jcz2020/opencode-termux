@@ -70,6 +70,15 @@ fi
 cp "$USR_SRC/bin/opencode.real" "$STAGE/usr/bin/opencode.real"
 cp -a "$USR_SRC/lib/opencode/"* "$STAGE/usr/lib/opencode/"
 
+# Android 15/16 的 16 KB 页设备要求 PT_LOAD 的 p_align >= 0x4000。
+# 在打包前统一验一遍，任何输入（新 deb / 旧 deb / 目录）都不能漏掉。
+echo "==> 16 KB 页对齐检查（Android 15/16）"
+ELF_CHECK=("$STAGE/usr/bin/opencode.real")
+for so in "$STAGE"/usr/lib/opencode/*.so; do
+  [ -e "$so" ] && ELF_CHECK+=("$so")
+done
+python3 "$ROOT/scripts/check-16kb-pages.py" "${ELF_CHECK[@]}"
+
 # 注入自推导 prefix 的 relocatable wrapper
 cat > "$STAGE/usr/bin/opencode" <<'WRAP'
 #!/system/bin/sh

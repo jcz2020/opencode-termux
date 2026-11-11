@@ -41,6 +41,7 @@ This project fixes it, and **depends on no third-party Termux packaging**:
 ### Requirements
 
 - Android 11 or newer (older may work, untested; verified on Android 16)
+- Ready for Android 15/16 **16 KB page** devices: every ELF `PT_LOAD` is 16 KB aligned
 - [Termux](https://termux.dev) (F-Droid or GitHub build)
 - **aarch64** (most modern phones; only aarch64 packages are published)
 
@@ -73,9 +74,9 @@ opencode update --check    # check for available updates without installing
 To download the `.deb` package manually:
 
 ```sh
-# Current latest: v2.2.6+termux2
+# Current latest: v2.2.7+termux2
 pkg install -y curl jq
-id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.6+termux2" \
+id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.7+termux2" \
      | jq -r '.assets[] | select(.name|endswith(".deb")) | .id')
 curl -sSL -C - -H 'Accept: application/octet-stream' -o opencode.deb \
   "https://api.github.com/repos/jcz2020/opencode-termux/releases/assets/$id"
@@ -85,7 +86,7 @@ dpkg -i opencode.deb
 ### Verify
 
 ```sh
-opencode --version      # → opencode v2.2.6
+opencode --version      # → opencode v2.2.7
 oc                      # shortcut for opencode
 ```
 

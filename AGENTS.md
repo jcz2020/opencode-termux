@@ -7,7 +7,7 @@
 > `docs/LESSONS.md` 踩坑全集 · `docs/spike-android-bun.md` 开发记录。
 > 改用户可见行为时同步 README。
 
-**现状**：`v2.2.6+termux2` 已发布并通过 `make smoke`；源码线已在本机和 CI 跑通。
+**现状**：`v2.2.7+termux2` 已发布并通过 `make smoke`；源码线已在本机和 CI 跑通。
 已实现一键安装脚本（`install-termux.sh`，国内多镜像加速）与 `opencode update` 拦截接管。
 
 ## 为什么需要 shim（别把它删了）
@@ -96,7 +96,7 @@ NDK_ROOT=/path/to/ndk \
   `scripts/verify-abi.sh <libopentui.so> <librust_pty.so> <@opentui/core 目录> <bun-pty 目录>`。
 - `API=28 make source-deb ...` 可换 API level（默认 30）。
 
-## 源码线的三个硬坑
+## 源码线的四个硬坑
 
 1. **原生库 / JS / 包版本必须对齐**。`@opentui/*` 与 `libopentui.so` 不一致时，
    静态检查看不出来，运行时才报 `ot_session_get_renderer_state failed: InvalidArgument`。
@@ -109,6 +109,13 @@ NDK_ROOT=/path/to/ndk \
    再 `-shared -static-libstdc++` 合并成 `.so`。
 3. **bionic 没有 `pthread_tryjoin_np`**，由 `spike/libopentui-android/compat.c` 补。
    必须用 **clang 按 C** 编；用 clang++ 会被 mangle，等于白补。
+4. **Android 15/16 的 16 KB 页对齐**。NDK r27 默认按 4 KB 链接，产出的
+   `.so` 在 16 KB 页设备上加载失败。`libopentui.so` / `libnoheap.so` 的链接行
+   必须带 `-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384`；
+   `librust_pty.so` 通过 `RUSTFLAGS` 的 `-C link-arg=...` 透传。`opencode.real`
+   用 bun 的 Android 模板（已 16 KB 对齐），构建后也做门禁。
+   `scripts/check-16kb-pages.py` 会检查每个 ELF 的所有 `PT_LOAD.p_align >= 0x4000`；
+   打包前、runtime bundle、`make smoke-static` / `make check-16kb` 都会跑。
 
 另外：CI 用官方 `bun-linux-aarch64-android`（`BUN_RELEASE=bun-v1.4.4`），
 不需要自己交叉编 bun。bun 1.4 的 isolated 安装会把包放到

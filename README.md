@@ -40,6 +40,7 @@ bun 的 FFI 把这个指针当 JS number 传给 libopentui，数值超过 `2^53`
 ### 前提
 
 - Android 11 或更高（更低版本没试过，不敢保证）
+- 已适配 Android 15/16 的 **16 KB 页**设备：所有 ELF 的 `PT_LOAD` 均按 16 KB 对齐
 - [Termux](https://termux.dev)（F-Droid 版和 GitHub 版都行）
 - 架构 **aarch64**（现在的安卓手机基本都是；本项目只提供 aarch64 包）
 
@@ -74,9 +75,9 @@ opencode update --check    # 仅检查是否有新版本
 如果想手动下载 `.deb` 包安装：
 
 ```sh
-# 当前最新版本：v2.2.6+termux2
+# 当前最新版本：v2.2.7+termux2
 pkg install -y curl jq
-id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.6+termux2" \
+id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.7+termux2" \
      | jq -r '.assets[] | select(.name|endswith(".deb")) | .id')
 curl -sSL -C - -H 'Accept: application/octet-stream' -o opencode.deb \
   "https://api.github.com/repos/jcz2020/opencode-termux/releases/assets/$id"
@@ -86,7 +87,7 @@ dpkg -i opencode.deb
 ### 装完验证
 
 ```sh
-opencode --version      # → opencode v2.2.6
+opencode --version      # → opencode v2.2.7
 oc                      # 短链，和 opencode 完全等价
 ```
 

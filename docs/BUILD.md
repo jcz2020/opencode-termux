@@ -81,7 +81,7 @@ gh workflow run build-deb-source -f version=2.2.5 -f rev=1 -f publish=true
 
 ---
 
-## 三个一定要知道的坑
+## 四个一定要知道的坑
 
 ### 1. 原生库和 JS 侧必须同版本
 
@@ -127,11 +127,28 @@ cannot locate symbol "pthread_tryjoin_np"
 `spike/libopentui-android/compat.c` 补上了它（6 行）。
 **必须用 `clang` 按 C 编** —— 用 `clang++` 编会被 mangle 成 C++ 符号，等于白编。
 
+### 4. Android 15/16 要求 16 KB 页对齐
+
+16 KB 页设备要求 ELF 的每个 `PT_LOAD` 段 `p_align >= 0x4000`；NDK r27
+和更早版本默认只按 4 KB（`0x1000`）链接，产出的 `.so` 会直接加载失败。
+构建脚本里已经强制加上：
+
+- `libopentui.so` / `libnoheap.so`：`-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384`
+- `librust_pty.so`：通过 `RUSTFLAGS` 透传同样的 `-C link-arg=...`
+- `opencode.real`：使用官方 Android Bun 模板，本身已是 16 KB 对齐，构建后做硬性门禁
+
+校验脚本（打包前、静态冒烟、runtime bundle 都会调用）：
+
+```sh
+python3 scripts/check-16kb-pages.py <opencode.real> <*.so ...>
+make check-16kb                   # 解包最新 dist/*.deb 并校验
+```
+
 ---
 
 ## 想改点东西
 
-- **换 opencode 版本**：`make source-deb VERSION=2.2.6`（上游 tag 形如 `v2.2.6`）
+- **换 opencode 版本**：`make source-deb VERSION=2.2.7`（上游 tag 形如 `v2.2.7`）
 - **改 shim**：改 `src/noheap.c`，`make source-deb` 会重新编
 - **改 TUI 行为**：opentui 的 Zig 源码在 `spike/libopentui-android/build.sh` 拉下来的那份里
 - **换 API level**：`API=28 make source-deb`（默认 30）

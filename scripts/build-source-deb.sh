@@ -26,6 +26,10 @@ PREFIX_DIR="data/data/com.termux/files/usr"
 NDKBIN="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin"
 CC_ANDROID="$NDKBIN/aarch64-linux-android${API}-clang"
 STRIP="$NDKBIN/llvm-strip"
+# NDK r27 默认 4 KB 页对齐；Android 15/16 的 16 KB 页设备要求 PT_LOAD
+# 的 p_align >= 0x4000。三个原生件的构建脚本各自加同样的链接参数，这里
+# 用于 libnoheap.so。
+PAGE_LDFLAGS=(-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384)
 [ -x "$CC_ANDROID" ] || { echo "ERROR: 没有 $CC_ANDROID" >&2; exit 1; }
 
 mkdir -p "$WORK" "$DIST"
@@ -112,7 +116,7 @@ LIBPTY="$WORK/bp/rust-pty/target/aarch64-linux-android/release/librust_pty.so"
 
 echo "==> [3/4] libnoheap.so"
 "$CC_ANDROID" -target "aarch64-linux-android$API" -O2 -fPIC -shared \
-  -o "$WORK/libnoheap.so" "$ROOT/src/noheap.c"
+  "${PAGE_LDFLAGS[@]}" -o "$WORK/libnoheap.so" "$ROOT/src/noheap.c"
 
 echo "==> [4/4] opencode（官方 android bun 编译）"
 if [ "$BUMP_OTUI" = "1" ]; then
@@ -137,6 +141,10 @@ echo "==> strip（二进制 200MB+ → 体积能砍一大截）"
 cp "$BIN" "$WORK/opencode.stripped"
 "$STRIP" --strip-all "$WORK/opencode.stripped" || echo "   WARN: strip 失败，沿用未 strip 版本"
 ls -la "$BIN" "$WORK/opencode.stripped" | awk '{print "   ", $5, $9}'
+
+echo "==> 16 KB 页对齐检查（Android 15/16）"
+python3 "$ROOT/scripts/check-16kb-pages.py" \
+  "$LIBOTUI" "$LIBPTY" "$WORK/libnoheap.so" "$WORK/opencode.stripped"
 
 # ── 3. 组装 rootfs ──────────────────────────────────────────────
 echo "==> 组装 deb rootfs"

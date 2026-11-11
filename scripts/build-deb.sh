@@ -37,7 +37,10 @@ CC="${CC:-clang}"
 command -v "$CC" >/dev/null || { echo "ERROR: 找不到编译器 $CC" >&2; exit 1; }
 echo "    CC=$CC"
 mkdir -p "$ROOT/build/shim"
-"$CC" -shared -fPIC -O2 -o "$ROOT/build/shim/libnoheap.so" "$ROOT/src/noheap.c"
+# Android 15/16 的 16 KB 页设备要求 PT_LOAD 的 p_align >= 0x4000。
+PAGE_LDFLAGS=(-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384)
+"$CC" -shared -fPIC -O2 "${PAGE_LDFLAGS[@]}" \
+  -o "$ROOT/build/shim/libnoheap.so" "$ROOT/src/noheap.c"
 
 echo "==> 组装 rootfs"
 mkdir -p "$BUILD/$PREFIX_DIR/bin" "$BUILD/$PREFIX_DIR/lib/opencode" "$BUILD/DEBIAN"
@@ -115,6 +118,12 @@ echo "opencode installed: $(/data/data/com.termux/files/usr/bin/opencode --versi
 exit 0
 POST
 chmod 755 "$BUILD/DEBIAN/postinst"
+
+echo "==> 16 KB 页对齐检查（Android 15/16）"
+python3 "$ROOT/scripts/check-16kb-pages.py" \
+  "$BUILD/$PREFIX_DIR/bin/opencode.real" \
+  "$BUILD/$PREFIX_DIR/lib/opencode/libopencode-crhandler.so" \
+  "$BUILD/$PREFIX_DIR/lib/opencode/libnoheap.so"
 
 echo "==> 修目录权限（Termux umask 077 → dpkg-deb 要求 0755+）"
 find "$BUILD" -type d -exec chmod 755 {} +

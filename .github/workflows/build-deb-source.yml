@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '上游 opencode 版本（如 2.2.6，对应 tag v2.2.6）'
+        description: '上游 opencode 版本（如 2.2.7，对应 tag v2.2.7）'
         required: true
-        default: '2.2.6'
+        default: '2.2.7'
       rev:
         description: '本项目修订号（termux<N>）'
         required: true
-        default: '1'
+        default: '2'
       publish:
         description: '构建后创建 release'
         required: false
@@ -131,6 +131,7 @@ jobs:
           - \`libopentui.so\`：zig 编核心 + NDK clang++ 编 yoga，静态链 libc++
           - \`librust_pty.so\`：cargo + NDK clang 交叉编（bun-pty）
           - \`libnoheap.so\`：关 bionic 堆 tagging（Android 11+ TUI 必需）
+          - 所有 ELF 的 PT_LOAD 均按 16 KB 页对齐，兼容 Android 15/16
           - 嵌入 Web UI 资产，支持 \`opencode serve\` 离线 Web 界面与 WebView
 
           不依赖任何第三方 Termux 打包产物。
