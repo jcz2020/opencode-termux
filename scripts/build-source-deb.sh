@@ -264,7 +264,8 @@ chmod 755 "$BUILD/DEBIAN/postinst" "$BUILD/$PREFIX_DIR/bin/opencode" \
 echo "==> dpkg-deb"
 DEB="$DIST/opencode_${DEBVER}_aarch64.deb"
 dpkg-deb --build --root-owner-group "$BUILD" "$DEB" >/dev/null
-sha256sum "$DEB" > "$DEB.sha256"
+# 校验文件用相对文件名，方便用户直接 `sha256sum -c`（不能写 CI 绝对路径）
+( cd "$DIST" && sha256sum "$(basename "$DEB")" > "$(basename "$DEB").sha256" )
 
 echo "==> 自检"
 dpkg-deb -I "$DEB" | sed -n '1,14p'

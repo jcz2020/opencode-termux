@@ -143,7 +143,8 @@ echo "==> 自检"
 dpkg-deb -I "$DEB" | sed -n '1,12p'
 echo "    files:"
 dpkg-deb -c "$DEB" | awk '{print "      " $6}' | grep -v '/$'
-printf '%s  %s\n' "$(sha256sum "$DEB" | cut -d' ' -f1)" "$DEB" > "$DEB.sha256"
+# 校验文件用相对文件名，方便用户直接 `sha256sum -c`
+( cd "$OUT" && printf '%s  %s\n' "$(sha256sum "$(basename "$DEB")" | cut -d' ' -f1)" "$(basename "$DEB")" > "$(basename "$DEB").sha256" )
 echo "==> $DEB"
 
 echo "==> 制作独立运行时 bundle"
