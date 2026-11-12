@@ -7,7 +7,7 @@
 > `docs/LESSONS.md` 踩坑全集 · `docs/spike-android-bun.md` 开发记录。
 > 改用户可见行为时同步 README。
 
-**现状**：`v2.2.7+termux2` 已发布并通过 `make smoke`；源码线已在本机和 CI 跑通。
+**现状**：`v2.2.7+termux3` 已发布并通过 `make smoke`；runtime bundle 内置 git/rg；源码线已在本机和 CI 跑通。
 已实现一键安装脚本（`install-termux.sh`，国内多镜像加速）与 `opencode update` 拦截接管。
 
 ## 为什么需要 shim（别把它删了）
@@ -29,6 +29,7 @@ scripts/
   build-deb.sh         镜像线：解包 → 编 shim → 组装 rootfs → dpkg-deb → bundle
   build-source-deb.sh  源码线：取三份源码 → 编四个件 → 验 ABI → 打包 → bundle
   build-runtime-bundle.sh 制作独立的 tar.zst 运行时 bundle + runtime-manifest.json
+  bundle-termux-tools.sh 把固定版本 git/rg + 依赖 .so 收进 runtime bundle
   install-termux.sh    一键安装/更新脚本（国内网络自动多源镜像加速与断点续传）
   install.sh           dpkg -i（会先清理老的 dpkg-divert 手工安装）
   smoke.sh             tmux 真 tty 起 TUI，断言主界面 + 版本
@@ -117,6 +118,11 @@ NDK_ROOT=/path/to/ndk \
    用 bun 的 Android 模板（已 16 KB 对齐），构建后也做门禁。
    `scripts/check-16kb-pages.py` 会检查每个 ELF 的所有 `PT_LOAD.p_align >= 0x4000`；
    打包前、runtime bundle、`make smoke-static` / `make check-16kb` 都会跑。
+5. **runtime bundle 只是“文件来源”，不是执行位置**。App 端受 Android 10+ W^X 限制，
+   不能执行 `filesDir/usr/bin/git`；`opencode-app` 的 `prepare-jnilibs.sh` 会把它
+   复制成 `libgit.so` / `librg.so`，运行时从 `nativeLibraryDir` 符号链接回
+   `usr/bin`。所以 bundle 新增工具时必须同时更新 App 侧映射，改完用
+   `bundle-termux-tools.sh` + `prepare-jnilibs.sh` 两端验证。
 
 另外：CI 用官方 `bun-linux-aarch64-android`（`BUN_RELEASE=bun-v1.4.4`），
 不需要自己交叉编 bun。bun 1.4 的 isolated 安装会把包放到

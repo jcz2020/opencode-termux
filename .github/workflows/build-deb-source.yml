@@ -131,6 +131,7 @@ jobs:
           - \`libopentui.so\`：zig 编核心 + NDK clang++ 编 yoga，静态链 libc++
           - \`librust_pty.so\`：cargo + NDK clang 交叉编（bun-pty）
           - \`libnoheap.so\`：关 bionic 堆 tagging（Android 11+ TUI 必需）
+          - 运行时 bundle 内置 \`git\` 2.56.1（含 HTTPS helper）与 \`ripgrep\` 15.2.0
           - 所有 ELF 的 PT_LOAD 均按 16 KB 页对齐，兼容 Android 15/16
           - 嵌入 Web UI 资产，支持 \`opencode serve\` 离线 Web 界面与 WebView
 

@@ -12,6 +12,19 @@
 | `libnoheap.so` | 本仓库的 `src/noheap.c` | 6 KB |
 | `opencode.real` | 官方 Android Bun 编译上游源码，然后 strip | 200 MiB |
 
+运行时的独立 bundle 还会额外内置（deb 本身不带）：
+
+| 工具 | 版本 | 用途 |
+|---|---|---|
+| `git` | 2.56.1（Termux） | agent 的 status/diff/add/commit/checkout/stash 等；含 HTTPS helper |
+| `ripgrep` | 15.2.0（Termux） | opencode Grep/Glob |
+| 依赖库 | libcurl / openssl / pcre2 / zlib / expat / iconv 等 | 固定 sha256，全部 16 KB 对齐 |
+
+这些工具由 `scripts/bundle-termux-tools.sh` 收进 `runtime-*.tar.zst` 的
+`usr/bin`、`usr/lib`、`usr/libexec/git-core`，并附带 git templates 与 CA 证书。
+App 侧必须把可执行文件再复制成 `jniLibs` 的 `libgit.so` / `librg.so`，
+否则 Android 10+ W^X 不允许从 `filesDir` 执行。
+
 ---
 
 ## 前置条件

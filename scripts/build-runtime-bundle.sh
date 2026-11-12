@@ -82,6 +82,14 @@ fi
 cp "$USR_SRC/bin/opencode.real" "$STAGE/usr/bin/opencode.real"
 cp -a "$USR_SRC/lib/opencode/"* "$STAGE/usr/lib/opencode/"
 
+# opencode agent 会通过 PATH 调 git / rg；runtime bundle 直接提供它们，
+# 避免 App 侧再向 Termux 仓库补下载（来源统一、版本可复现）。
+if [ "${BUNDLE_TOOLS:-1}" = "1" ]; then
+  bash "$ROOT/scripts/bundle-termux-tools.sh" "$STAGE"
+else
+  echo "==> BUNDLE_TOOLS=0，跳过 git/rg 打包"
+fi
+
 # Android 15/16 的 16 KB 页设备要求 PT_LOAD 的 p_align >= 0x4000。
 # 在打包前统一验一遍，任何输入（新 deb / 旧 deb / 目录）都不能漏掉。
 echo "==> 16 KB 页对齐检查（Android 15/16）"
@@ -89,6 +97,14 @@ ELF_CHECK=("$STAGE/usr/bin/opencode.real")
 for so in "$STAGE"/usr/lib/opencode/*.so; do
   [ -e "$so" ] && ELF_CHECK+=("$so")
 done
+for f in "$STAGE/usr/bin/git" "$STAGE/usr/bin/rg" \
+         "$STAGE/usr/libexec/git-core/git-remote-http"; do
+  [ -e "$f" ] && ELF_CHECK+=("$f")
+done
+while IFS= read -r so; do
+  ELF_CHECK+=("$so")
+done < <(find "$STAGE/usr/lib" -maxdepth 1 -type f \
+  \( -name '*.so' -o -name '*.so.*' \) | sort)
 python3 "$ROOT/scripts/check-16kb-pages.py" "${ELF_CHECK[@]}"
 
 # 注入自推导 prefix 的 relocatable wrapper
