@@ -1,5 +1,5 @@
 VERSION ?= 2.2.7
-REV     ?= 2
+REV     ?= 3   # 下一个待发布修订号（2 已发布，避免误覆盖）
 
 .PHONY: help fetch deb install smoke smoke-static smoke-release source-deb verify-abi check-16kb clean runtime-bundle
 
@@ -10,7 +10,7 @@ help:
 	@echo "make install                # 装最新的 dist/*.deb（自动清理旧 diversion）"
 	@echo ""
 	@echo "── 源码编译线（不依赖任何第三方打包产物）──"
-	@echo "make source-deb VERSION=2.2.7 REV=2   # 需要 NDK_ROOT / zig 0.17 / bun / rust"
+	@echo "make source-deb VERSION=2.2.7 REV=3   # 需要 NDK_ROOT / zig 0.17 / bun / rust"
 	@echo "make runtime-bundle                   # 制作独立运行时 bundle (tar.zst + manifest)"
 	@echo ""
 	@echo "── 冒烟与校验 ──"
