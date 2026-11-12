@@ -22,6 +22,7 @@
 | Zig | **0.17.0**（必须和 opentui 的 `.zig-version` 一致） | <https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz> |
 | Bun | 1.4.4（宿主机版，用来跑构建脚本） | <https://github.com/oven-sh/bun/releases> |
 | Rust | stable + `aarch64-linux-android` target | `rustup target add aarch64-linux-android` |
+| Python 3 | 3.8+（构建脚本解析版本、校验 16 KB 对齐） | `apt install python3` |
 | jq / curl / tar / unzip | 任意版本 | `apt install jq curl` |
 
 > ⚠️ Zig 的版本必须对上：opentui v0.8.0/0.8.1 的 `build.zig` 还在用 Zig 0.16 的 API

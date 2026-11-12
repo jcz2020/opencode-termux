@@ -3,6 +3,9 @@
 #
 # 制作符合 docs/RUNTIME-CONTRACT.md 规范的独立运行时 bundle（tar.zst）与 manifest。
 # 可消费已有的 .deb 包或构建阶段的 rootfs 目录。
+#
+# rev 可以是数字（按源码线拼成 +termux<N>），也可以直接传
+# termux<N> / mirror<N>（镜像线必须这样传，否则 manifest 的 tag 会错）。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -36,7 +39,16 @@ if [ -z "$VERSION" ] || [ -z "$REV" ]; then
     TAG_VER="${VERSION}+termux${REV}"
   fi
 else
-  TAG_VER="${VERSION}+termux${REV}"
+  # 显式传入 version/rev：兼容「数字 = 源码线」与「termuxN/mirrorN」两种写法。
+  # 镜像线 build-deb.sh 传的是 mirror<N>，不能一律加 +termux。
+  if [[ "$REV" =~ ^(termux|mirror)[0-9]+$ ]]; then
+    TAG_VER="${VERSION}+${REV}"
+  elif [[ "$REV" =~ ^[0-9]+$ ]]; then
+    TAG_VER="${VERSION}+termux${REV}"
+  else
+    echo "ERROR: rev 必须形如 2、termux2 或 mirror2，收到: $REV" >&2
+    exit 1
+  fi
 fi
 
 TMP="$(mktemp -d "/data/data/com.termux/files/usr/tmp/runtime-bundle.XXXXXX" 2>/dev/null || mktemp -d "/tmp/runtime-bundle.XXXXXX")"

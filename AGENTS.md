@@ -22,7 +22,7 @@ bun 的 FFI 把它当 JS number 传给 libopentui 时超过 2^53 →
 ## STRUCTURE
 
 ```
-Makefile               入口（fetch/deb/source-deb/runtime-bundle/install/smoke/verify-abi/clean）
+Makefile               入口（fetch/deb/source-deb/runtime-bundle/install/smoke/verify-abi/check-16kb/clean）
 src/noheap.c           关堆 tagging 的 6 KB LD_PRELOAD shim
 scripts/
   fetch.sh             取上游 pkg.tar.xz（走 release asset API）+ .MTREE sha256 校验
@@ -36,6 +36,7 @@ scripts/
   smoke-release.sh     下载某个 release 的 deb → 安装 → 真机冒烟
   e2e-scenarios.sh     沙箱里跑 6 个真实交互 + 2 项落盘核对
   verify-abi.sh        FFI 符号 / bionic 依赖比对（build-source-deb 会调用）
+  check-16kb-pages.py  校验所有 PT_LOAD 的 p_align >= 0x4000（Android 15/16）
   abi-symbols.py       精确提取 @opentui/core 的 nativeSymbols 键
   push-api.sh          github.com 的 git push 不通时，用 Git Data API 推提交
 spike/{libopentui,bun-pty,opencode}-android/build.sh

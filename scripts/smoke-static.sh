@@ -114,7 +114,11 @@ pkgver="$(dpkg-deb -f "$DEB" Version)"
 pkgname="$(dpkg-deb -f "$DEB" Package)"
 arch="$(dpkg-deb -f "$DEB" Architecture)"
 echo "  $pkgname $pkgver ($arch)"
-case "$pkgver" in *+termux*) ok "版本带 termux 后缀" ;; *) bad "版本没有 termux 后缀" ;; esac
+case "$pkgver" in
+  *+termux*) ok "版本带 termux 后缀" ;;
+  *+mirror*) ok "版本带 mirror 后缀" ;;
+  *) bad "版本没有 termux/mirror 后缀" ;;
+esac
 [ "$arch" = aarch64 ] && ok "架构 aarch64" || bad "架构 $arch"
 
 [ "$fail" = 0 ] || { echo "=== 静态冒烟失败 ==="; exit 1; }

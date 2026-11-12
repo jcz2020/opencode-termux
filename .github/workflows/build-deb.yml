@@ -107,7 +107,13 @@ jobs:
           mkdir -p /tmp/x && dpkg-deb -x "$deb" /tmp/x
           file /tmp/x/data/data/com.termux/files/usr/lib/opencode/libnoheap.so
           file /tmp/x/data/data/com.termux/files/usr/bin/opencode.real
-          sha256sum "$deb" | tee "$deb.sha256"
+          echo "--- 16 KB page alignment"
+          python3 scripts/check-16kb-pages.py \
+            /tmp/x/data/data/com.termux/files/usr/bin/opencode.real \
+            /tmp/x/data/data/com.termux/files/usr/lib/opencode/libnoheap.so \
+            /tmp/x/data/data/com.termux/files/usr/lib/opencode/libopencode-crhandler.so
+          # 相对文件名，用户可直接 sha256sum -c
+          ( cd dist && sha256sum "$(basename "$deb")" | tee "$(basename "$deb").sha256" )
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

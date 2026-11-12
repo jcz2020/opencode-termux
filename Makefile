@@ -35,7 +35,8 @@ source-deb:
 	bash scripts/build-source-deb.sh $(VERSION) $(REV)
 
 runtime-bundle:
-	bash scripts/build-runtime-bundle.sh "$$(ls -1t dist/opencode_*_aarch64.deb 2>/dev/null | head -1)" $(VERSION) $(REV)
+	# 版本/修订号从 deb 文件名推断，避免 VERSION/REV 默认值把 bundle 标错版本
+	bash scripts/build-runtime-bundle.sh "$$(ls -1t dist/opencode_*_aarch64.deb 2>/dev/null | head -1)"
 
 smoke:
 	bash scripts/smoke.sh
