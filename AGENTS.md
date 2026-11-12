@@ -76,7 +76,7 @@ make deb   VERSION=2.2.5          # → dist/opencode_2.2.5+mirror1_aarch64.deb
 make install                      # dpkg -i 最新 dist/*.deb（镜像线包 Depends: clang）
 make smoke                        # 需已安装 + tmux；失败非 0
 make smoke-static                 # 解包 dist/ 最新 deb，无需设备
-make smoke-release TAG=v2.2.5+termux2   # 从 release 下载、安装、真机冒烟
+make smoke-release TAG=v2.2.7+termux2   # 从 release 下载、安装、真机冒烟
 bash scripts/e2e-scenarios.sh [sandbox]
                                   # 6 个交互 + 2 项落盘；需模型/网络；
                                   # 默认沙箱 $HOME/tmp/oc-sandbox，绝不在仓库目录跑
@@ -84,8 +84,8 @@ bash scripts/e2e-scenarios.sh [sandbox]
 # 只能在 x86_64 Linux / CI 跑（NDK 的 clang 是 x86_64，Termux 上跑不了）
 NDK_ROOT=/path/to/ndk \
   PATH=/path/to/zig-0.17.0:/path/to/bun:$PATH \
-  make source-deb VERSION=2.2.5 REV=1
-                                  # → dist/opencode_2.2.5+termux1_aarch64.deb
+  make source-deb VERSION=2.2.7 REV=2
+                                  # → dist/opencode_2.2.7+termux2_aarch64.deb
 ```
 
 - `make source-deb` 需要 NDK r27c、**zig 0.17.0**（脚本会拿 `spike` 拉下来的
