@@ -102,6 +102,7 @@ gh workflow run build-deb-source -f version=2.3.0 -f rev=2 -f publish=true
 | `spike/opencode-android/build.sh` | 只编 `opencode.real`（含 `build.ts` 的 android 补丁） |
 | `scripts/build-runtime-bundle.sh` | 组装可独立分发的 `runtime-*.tar.zst` + manifest |
 | `scripts/bundle-termux-tools.sh` | 把固定版本 git/rg 与依赖收进 runtime bundle |
+| `scripts/check-tool-updates.sh` | 对比 `termux-tools.lock` 与 Termux 仓库，只报告不自动更新 |
 | `scripts/verify-abi.sh` | 比对 `@opentui/core` 要的 FFI 符号和 `.so` 导出的符号 |
 | `scripts/smoke-static.sh` | 解包 deb 做静态体检（不需要设备） |
 | `scripts/smoke-service.sh` | 设备上：隔离 XDG 启一次 2.3.0 后台服务 |
