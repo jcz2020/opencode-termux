@@ -33,6 +33,9 @@ bun 的 FFI 把这个指针当 JS number 传给 libopentui，数值超过 `2^53`
 | `librust_pty.so`（执行命令、终端面板） | Rust + NDK 自行编译 |
 | `libnoheap.so`（关掉堆 tagging） | 本仓库里 6 KB 的 C 代码 |
 
+独立的 runtime bundle 还内置 `git` 2.56.1（含 HTTPS helper）、`ripgrep` 15.2.0
+及依赖库，供 Android App 在 `nativeLibraryDir` 执行；deb 本身不重复打包这些工具。
+
 ---
 
 ## 安装
@@ -75,9 +78,9 @@ opencode update --check    # 仅检查是否有新版本
 如果想手动下载 `.deb` 包安装：
 
 ```sh
-# 当前最新版本：v2.2.7+termux2
+# 当前最新版本：v2.2.7+termux3
 pkg install -y curl jq
-id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.7+termux2" \
+id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.7+termux3" \
      | jq -r '.assets[] | select(.name|endswith(".deb")) | .id')
 curl -sSL -C - -H 'Accept: application/octet-stream' -o opencode.deb \
   "https://api.github.com/repos/jcz2020/opencode-termux/releases/assets/$id"

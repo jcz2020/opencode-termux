@@ -34,6 +34,10 @@ This project fixes it, and **depends on no third-party Termux packaging**:
 | `librust_pty.so` (command execution / terminal panel) | compiled by us — Rust + NDK, for bionic |
 | `libnoheap.so` (disable heap tagging) | 6 KB of C in this repo |
 
+The standalone runtime bundle additionally ships `git` 2.56.1 (with HTTPS helper),
+`ripgrep` 15.2.0 and their shared-library dependencies for Android apps to execute
+from `nativeLibraryDir`; the deb does not duplicate these tools.
+
 ---
 
 ## Install
@@ -74,9 +78,9 @@ opencode update --check    # check for available updates without installing
 To download the `.deb` package manually:
 
 ```sh
-# Current latest: v2.2.7+termux2
+# Current latest: v2.2.7+termux3
 pkg install -y curl jq
-id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.7+termux2" \
+id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.7+termux3" \
      | jq -r '.assets[] | select(.name|endswith(".deb")) | .id')
 curl -sSL -C - -H 'Accept: application/octet-stream' -o opencode.deb \
   "https://api.github.com/repos/jcz2020/opencode-termux/releases/assets/$id"
