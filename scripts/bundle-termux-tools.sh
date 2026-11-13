@@ -131,6 +131,31 @@ find "$STAGE_USR/share/git-core" -type f -exec chmod 644 {} +
 chmod 644 "$STAGE_USR/etc/tls/cert.pem"
 [ -f "$STAGE_USR/etc/tls/openssl.cnf" ] && chmod 644 "$STAGE_USR/etc/tls/openssl.cnf"
 
+mkdir -p "$STAGE_USR/licenses"
+cat > "$STAGE_USR/licenses/THIRD-PARTY-TOOLS.md" <<'NOTICE'
+# Bundled CLI tools
+
+These binaries are built by the Termux project and distributed unmodified:
+
+- git 2.56.1 — GNU General Public License v2.0
+  https://github.com/git/git
+- ripgrep 15.2.0 — MIT / Unlicense
+  https://github.com/BurntSushi/ripgrep
+- PCRE2 10.49 — BSD 3-Clause
+  https://github.com/PCRE2Project/pcre2
+- libcurl 8.23.0 — curl License
+  https://github.com/curl/curl
+- OpenSSL 3.6.5 — Apache License 2.0
+  https://github.com/openssl/openssl
+- zlib, libexpat, libiconv, libssh2, nghttp2/nghttp3/ngtcp2
+  zlib / MIT / LGPL / BSD-style licenses
+- ca-certificates — Mozilla Public License 2.0
+
+Termux package sources and build recipes:
+  https://github.com/termux/termux-packages
+NOTICE
+chmod 644 "$STAGE_USR/licenses/THIRD-PARTY-TOOLS.md"
+
 echo "==> 工具已加入 bundle："
 du -sh "$STAGE_USR/bin/git" "$STAGE_USR/bin/rg" \
   "$STAGE_USR/libexec/git-core/git-remote-http" "$STAGE_USR/lib" 2>/dev/null
