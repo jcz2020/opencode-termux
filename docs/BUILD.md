@@ -88,6 +88,8 @@ gh workflow run build-deb-source -f version=2.2.7 -f rev=3 -f publish=true
 | `spike/libopentui-android/build.sh` | 只编 `libopentui.so` |
 | `spike/bun-pty-android/build.sh` | 只编 `librust_pty.so` |
 | `spike/opencode-android/build.sh` | 只编 `opencode.real`（含 `build.ts` 的 android 补丁） |
+| `scripts/build-runtime-bundle.sh` | 组装可独立分发的 `runtime-*.tar.zst` + manifest |
+| `scripts/bundle-termux-tools.sh` | 把固定版本 git/rg 与依赖收进 runtime bundle |
 | `scripts/verify-abi.sh` | 比对 `@opentui/core` 要的 FFI 符号和 `.so` 导出的符号 |
 | `scripts/smoke-static.sh` | 解包 deb 做静态体检（不需要设备） |
 | `scripts/smoke-release.sh` | 设备上：下载 release、装上、tmux 冒烟，**真发一条 prompt** |
