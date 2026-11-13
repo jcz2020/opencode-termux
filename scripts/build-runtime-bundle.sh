@@ -6,6 +6,7 @@
 #
 # rev 可以是数字（按源码线拼成 +termux<N>），也可以直接传
 # termux<N> / mirror<N>（镜像线必须这样传，否则 manifest 的 tag 会错）。
+# 默认会调用 bundle-termux-tools.sh 加入 git/rg；BUNDLE_TOOLS=0 可跳过。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
