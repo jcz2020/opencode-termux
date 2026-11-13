@@ -1,0 +1,63 @@
+name: watch-tools
+
+# 每天检查 Termux 仓库里的 git/rg/依赖是否有新版本。
+# 只维护一个开放 issue，不自动改 lock、不自动发 release。
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check pinned Termux tools
+        id: check
+        run: |
+          set +e
+          bash scripts/check-tool-updates.sh > updates.md 2>&1
+          code=$?
+          cat updates.md
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" -eq 1 ]; then
+            echo "ERROR: tool update check failed" >&2
+            exit 1
+          fi
+
+      - name: Create or update update issue
+        if: steps.check.outputs.code == '2'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          title="Termux CLI tools update available"
+          existing="$(gh issue list --state open --limit 100 \
+            --json number,title \
+            --jq '.[] | select(.title == "Termux CLI tools update available") | .number' \
+            | head -1 || true)"
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file updates.md
+            echo "Updated issue #$existing"
+          else
+            gh issue create --title "$title" --body-file updates.md
+          fi
+
+      - name: Close stale update issue
+        if: steps.check.outputs.code == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          existing="$(gh issue list --state open --limit 100 \
+            --json number,title \
+            --jq '.[] | select(.title == "Termux CLI tools update available") | .number' \
+            | head -1 || true)"
+          if [ -n "$existing" ]; then
+            gh issue close "$existing" --comment "所有 pinned Termux 工具已是最新。"
+          fi

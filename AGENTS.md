@@ -45,8 +45,10 @@
 Makefile            入口目标（见 COMMANDS）
 src/noheap.c        关 bionic 堆 tagging 的 LD_PRELOAD shim
 scripts/            取源码/打包/安装/冒烟/推送（细节见 scripts/AGENTS.md）
+scripts/termux-tools.lock  git/rg/依赖的固定版本 + sha256
+scripts/check-tool-updates.sh  对比 lock 与 Termux Packages 索引
 spike/*/build.sh    源码线真正的编译逻辑，被 build-source-deb.sh 调用
-.github/workflows/  build-deb-source · build-deb · watch-upstream(6h) · smoke-device · spike-*
+.github/workflows/  build-deb-source · build-deb · watch-upstream(6h) · watch-tools(每日) · smoke-device · spike-*
 docs/               BUILD 编译指南 · LESSONS 踩坑全集 · spike-android-bun 开发记录
 cache/ build/ dist/ gitignore；make clean 连 dist/ 一起删
 ```
@@ -88,6 +90,7 @@ NDK_ROOT=... PATH=... make source-deb VERSION=2.3.0 REV=2 # 源码线，仅 x86_
 make install && make smoke                                # 设备：TUI + 后台服务
 make smoke-service                                       # 只测后台服务（隔离 XDG）
 make smoke-static && make check-16kb                      # 任意
+make check-tool-updates                                   # git/rg/依赖是否有新版
 make smoke-release TAG=v2.3.0+termux2                     # release 装机冒烟
 bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓库跑
 ```

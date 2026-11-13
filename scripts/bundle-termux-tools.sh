@@ -12,38 +12,25 @@
 # 所有 deb 的版本与 sha256 固定，避免上游重建后静默换二进制。下载源可换，
 # 但内容必须匹配固定 sha256。BUNDLE_TOOLS=0 可跳过整个步骤。
 #
-# 目前只收 opencode agent 必需的 git/rg。要加 gh/fd/jq/busybox 等工具时：
-#   1. 在 PACKAGES 里加固定版本 + sha256；
+# 版本源在 scripts/termux-tools.lock（name|version|path|sha256）。
+# 要加 gh/fd/jq/busybox 等工具时：
+#   1. 在 lock 里加固定版本 + sha256；
 #   2. 在“收集 git / rg 二进制”段把 ELF 复制到 $STAGE_USR/bin；
 #   3. App 侧 prepare-jnilibs.sh 会自动把 usr/bin 下的 ELF 收进 jniLibs。
 set -euo pipefail
 
 STAGE="${1:?usage: bundle-termux-tools.sh <runtime-stage-dir>}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+LOCK="$ROOT/scripts/termux-tools.lock"
 CACHE="$ROOT/cache/termux-tools"
 EXTRACT="$CACHE/extract"
 STAGE_USR="$STAGE/usr"
 
+[ -f "$LOCK" ] || { echo "ERROR: 缺少 $LOCK" >&2; exit 1; }
+
 mkdir -p "$CACHE" "$EXTRACT" "$STAGE_USR/bin" "$STAGE_USR/lib" \
          "$STAGE_USR/libexec/git-core" "$STAGE_USR/share/git-core" \
          "$STAGE_USR/etc/tls"
-
-# 固定版本的 Termux deb。字段：包名|相对路径|sha256
-PACKAGES=(
-  "git|pool/main/g/git/git_2.56.1_aarch64.deb|3343f56fc99e2f0631a553a39789769495435cb07b6ffb3c71a7fcb7bd561e95"
-  "ripgrep|pool/main/r/ripgrep/ripgrep_15.2.0_aarch64.deb|38e28bc297000517b24702568a483eca7dc3323eb6bdccc9033f031776bdcc6c"
-  "pcre2|pool/main/p/pcre2/pcre2_10.49_aarch64.deb|c27995e5f52b8ecc9b8b3e662eb08e49f82a18bfd3f34343936acc7b23964724"
-  "libcurl|pool/main/libc/libcurl/libcurl_8.23.0_aarch64.deb|2011bb9709261bb3d5ecaa6672faa333be14cf48ad4af37031e3e365309557ac"
-  "libnghttp2|pool/main/libn/libnghttp2/libnghttp2_1.71.0_aarch64.deb|ae33e7b21e0636be8686b9b13a20e31267f047f69cb26b4befd70c9a9bae221e"
-  "libnghttp3|pool/main/libn/libnghttp3/libnghttp3_1.19.0_aarch64.deb|8bb6fa31f9281cd48047ec9a571cadf153538f5b38f0203ad7a4e221344b14a6"
-  "libngtcp2|pool/main/libn/libngtcp2/libngtcp2_1.26.0_aarch64.deb|8225ecde58104ef5aa234fa54a1bea5051a8a9ef2937e5ba996b3e8dda68c8eb"
-  "libssh2|pool/main/libs/libssh2/libssh2_1.11.1-2_aarch64.deb|1add4e0a926b848814e7e2f1817ea28b123c54cabd5bbc4e5cfd65291cbad84e"
-  "openssl|pool/main/o/openssl/openssl_1:3.6.5_aarch64.deb|a2fb7856875e63ef6b90442752e05974813372c3ca86d2513a78ea43c67a0f8b"
-  "ca-certificates|pool/main/c/ca-certificates/ca-certificates_1:2026.11.05-1_all.deb|12fc350fc5ad638338b06b04835bce897615f8c93f96d30ac396cdb39b850c6b"
-  "zlib|pool/main/z/zlib/zlib_1.4_aarch64.deb|e3027565ae50bcd8ba5113c988b589754ae192c9cc3e6afbe3e4ed7c06b2598e"
-  "libexpat|pool/main/libe/libexpat/libexpat_2.10.0_aarch64.deb|0e4411f01f6fb664f3f04f9420289472f9afc30db01ea1c5d1e57fd9fa2354be"
-  "libiconv|pool/main/libi/libiconv/libiconv_1.19.1_aarch64.deb|a1c6323eff4f660e16ae6f5832356444b3269c19a4f61146355a49e7c4be5ed1"
-)
 
 MIRRORS=(
   "https://packages.termux.dev/apt/termux-main"
@@ -82,13 +69,25 @@ fetch_deb() {
   return 1
 }
 
-for entry in "${PACKAGES[@]}"; do
-  IFS='|' read -r name rel sha <<<"$entry"
+pkg_count=0
+while IFS='|' read -r name version rel sha; do
+  case "$name" in
+    ""|\#*) continue ;;
+  esac
+  [ -n "$version" ] && [ -n "$rel" ] && [ -n "$sha" ] || {
+    echo "ERROR: termux-tools.lock 行格式错误: $name|$version|$rel|$sha" >&2
+    exit 1
+  }
+  echo "==> $name $version"
   fetch_deb "$name" "$rel" "$sha"
   rm -rf "$EXTRACT/$name"
   mkdir -p "$EXTRACT/$name"
   dpkg-deb -x "$CACHE/$name.deb" "$EXTRACT/$name"
-done
+  pkg_count=$((pkg_count + 1))
+done < "$LOCK"
+
+[ "$pkg_count" -gt 0 ] || { echo "ERROR: termux-tools.lock 没有有效包" >&2; exit 1; }
+echo "    已准备 $pkg_count 个 Termux 包"
 
 echo "==> 收集 git / rg 二进制"
 GIT_USR="$(find "$EXTRACT/git" -type d -path '*/files/usr' | head -1)"

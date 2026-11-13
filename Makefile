@@ -1,7 +1,7 @@
 VERSION ?= 2.3.0
 REV     ?= 3   # 下一个待发布修订号（2 已发布，避免误覆盖）
 
-.PHONY: help fetch deb install smoke smoke-service smoke-static smoke-release source-deb verify-abi check-16kb clean runtime-bundle
+.PHONY: help fetch deb install smoke smoke-service smoke-static smoke-release source-deb verify-abi check-16kb check-tool-updates clean runtime-bundle
 
 help:
 	@echo "── 二进制重打包线（拿上游 bionic 二进制）──"
@@ -20,6 +20,7 @@ help:
 	@echo "make smoke-release TAG=v2.3.0+termux2   # 从 release 拉 deb 装到设备再冒烟"
 	@echo "make verify-abi             # 只跑 FFI 符号/依赖校验"
 	@echo "make check-16kb             # 校验最新 dist/*.deb 的 16 KB 页对齐"
+	@echo "make check-tool-updates     # 对比 termux-tools.lock 与 Termux 仓库"
 	@echo ""
 	@echo "make clean                  # 清 build/ dist/"
 
@@ -70,6 +71,9 @@ check-16kb:
 	python3 scripts/check-16kb-pages.py \
 	  "$$tmp/data/data/com.termux/files/usr/bin/opencode.real" \
 	  "$$tmp"/data/data/com.termux/files/usr/lib/opencode/*.so
+
+check-tool-updates:
+	bash scripts/check-tool-updates.sh
 
 clean:
 	rm -rf build dist

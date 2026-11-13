@@ -25,6 +25,18 @@
 App 侧必须把可执行文件再复制成 `jniLibs` 的 `libgit.so` / `librg.so`，
 否则 Android 10+ W^X 不允许从 `filesDir` 执行。
 
+工具版本唯一来源是 `scripts/termux-tools.lock`。升级流程：
+
+```sh
+make check-tool-updates     # 对比 lock 与 Termux Packages，只报告不改文件
+# 手动改 lock 的版本/路径/sha256
+make smoke-static && make check-16kb
+make smoke-service          # 设备
+# 发新的 +termuxN，不要覆盖旧 release
+```
+
+`watch-tools` workflow 每天检查一次，只维护一个 issue，不自动改 lock、不自动发版。
+
 ---
 
 ## 前置条件

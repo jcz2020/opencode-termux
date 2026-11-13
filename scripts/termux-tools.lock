@@ -1,0 +1,16 @@
+# Termux CLI tools pinned into the runtime bundle.
+# Format: name|version|pool path|sha256
+# Update flow: edit this file -> make runtime-bundle -> 16KB gates -> new +termuxN release.
+git|2.56.1|pool/main/g/git/git_2.56.1_aarch64.deb|3343f56fc99e2f0631a553a39789769495435cb07b6ffb3c71a7fcb7bd561e95
+ripgrep|15.2.0|pool/main/r/ripgrep/ripgrep_15.2.0_aarch64.deb|38e28bc297000517b24702568a483eca7dc3323eb6bdccc9033f031776bdcc6c
+pcre2|10.49|pool/main/p/pcre2/pcre2_10.49_aarch64.deb|c27995e5f52b8ecc9b8b3e662eb08e49f82a18bfd3f34343936acc7b23964724
+libcurl|8.23.0|pool/main/libc/libcurl/libcurl_8.23.0_aarch64.deb|2011bb9709261bb3d5ecaa6672faa333be14cf48ad4af37031e3e365309557ac
+libnghttp2|1.71.0|pool/main/libn/libnghttp2/libnghttp2_1.71.0_aarch64.deb|ae33e7b21e0636be8686b9b13a20e31267f047f69cb26b4befd70c9a9bae221e
+libnghttp3|1.19.0|pool/main/libn/libnghttp3/libnghttp3_1.19.0_aarch64.deb|8bb6fa31f9281cd48047ec9a571cadf153538f5b38f0203ad7a4e221344b14a6
+libngtcp2|1.26.0|pool/main/libn/libngtcp2/libngtcp2_1.26.0_aarch64.deb|8225ecde58104ef5aa234fa54a1bea5051a8a9ef2937e5ba996b3e8dda68c8eb
+libssh2|1.11.1-2|pool/main/libs/libssh2/libssh2_1.11.1-2_aarch64.deb|1add4e0a926b848814e7e2f1817ea28b123c54cabd5bbc4e5cfd65291cbad84e
+openssl|1:3.6.5|pool/main/o/openssl/openssl_1:3.6.5_aarch64.deb|a2fb7856875e63ef6b90442752e05974813372c3ca86d2513a78ea43c67a0f8b
+ca-certificates|1:2026.11.05-1|pool/main/c/ca-certificates/ca-certificates_1:2026.11.05-1_all.deb|12fc350fc5ad638338b06b04835bce897615f8c93f96d30ac396cdb39b850c6b
+zlib|1.4|pool/main/z/zlib/zlib_1.4_aarch64.deb|e3027565ae50bcd8ba5113c988b589754ae192c9cc3e6afbe3e4ed7c06b2598e
+libexpat|2.10.0|pool/main/libe/libexpat/libexpat_2.10.0_aarch64.deb|0e4411f01f6fb664f3f04f9420289472f9afc30db01ea1c5d1e57fd9fa2354be
+libiconv|1.19.1|pool/main/libi/libiconv/libiconv_1.19.1_aarch64.deb|a1c6323eff4f660e16ae6f5832356444b3269c19a4f61146355a49e7c4be5ed1
