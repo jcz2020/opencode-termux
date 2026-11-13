@@ -11,6 +11,11 @@
 #
 # 所有 deb 的版本与 sha256 固定，避免上游重建后静默换二进制。下载源可换，
 # 但内容必须匹配固定 sha256。BUNDLE_TOOLS=0 可跳过整个步骤。
+#
+# 目前只收 opencode agent 必需的 git/rg。要加 gh/fd/jq/busybox 等工具时：
+#   1. 在 PACKAGES 里加固定版本 + sha256；
+#   2. 在“收集 git / rg 二进制”段把 ELF 复制到 $STAGE_USR/bin；
+#   3. App 侧 prepare-jnilibs.sh 会自动把 usr/bin 下的 ELF 收进 jniLibs。
 set -euo pipefail
 
 STAGE="${1:?usage: bundle-termux-tools.sh <runtime-stage-dir>}"
