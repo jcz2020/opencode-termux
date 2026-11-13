@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '上游 opencode 版本（如 2.2.7，对应 tag v2.2.7）'
+        description: '上游 opencode 版本（如 2.3.0，对应 tag v2.3.0）'
         required: true
-        default: '2.2.7'
+        default: '2.3.0'
       rev:
         description: '本项目修订号（termux<N>，默认下一个未发布修订）'
         required: true
-        default: '4'
+        default: '2'
       publish:
         description: '构建后创建 release'
         required: false

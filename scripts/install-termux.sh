@@ -43,7 +43,7 @@ while [ $# -gt 0 ]; do
       echo "选项:"
       echo "  --check, -c       只检查是否有新版本，不执行下载与安装"
       echo "  --force, -f       强制下载并覆盖安装当前或指定版本"
-      echo "  --version, -v VER 安装指定版本（如 2.2.6+termux1 或 2.2.6）"
+      echo "  --version, -v VER 安装指定版本（如 2.3.0+termux1 或 2.3.0）"
       echo "  --dry-run         显示拟执行的下载与版本信息，不做改动"
       echo "  --help, -h        显示本帮助信息"
       exit 0

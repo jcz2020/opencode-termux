@@ -7,27 +7,21 @@
 > `docs/LESSONS.md` 踩坑全集 · `docs/spike-android-bun.md` 开发记录。
 > 改用户可见行为时同步 README。
 
-**现状**：`v2.2.7+termux3` 已发布并通过 `make smoke`；runtime bundle 内置 git/rg；源码线已在本机和 CI 跑通。
+**现状**：`v2.3.0+termux1` 已发布并通过 `make smoke-static`；runtime bundle 内置 git/rg；源码线已在本机和 CI 跑通。
 已实现一键安装脚本（`install-termux.sh`，国内多镜像加速）与 `opencode update` 拦截接管。
 
-## 跨项目操作必须先征得明确许可（强制）
+## 其他项目：只读审查 + 提 issue，不直接改（强制）
 
-本仓库之外的任何项目（尤其是同级目录的 `../opencode-app`），在做出任何**写操作**之前，
-必须先向用户说明并等待明确许可：
+本仓库之外的任何项目（尤其是同级目录的 `../opencode-app`）默认**只读**：
 
-1. 为什么要动这个项目，与当前任务是什么关系；
-2. 准备修改哪些文件、执行哪些命令；
-3. 风险是什么、准备怎么验证；
-4. 等用户明确回复“可以 / 继续 / 同意”后再执行。
-
-**写操作**包括但不限于：改文件、创建提交、`git push`、打 tag、创建/修改 release、
-改 CI/workflow、发布 APK/AAB。
-
-规则细节：
-
-- 只读排查可以先说明目的，但不能先改再报。
-- 即使用户在对话中提到了该项目，只要没有明确授权当次写入，也要先给出改动清单和风险再问。
-- 除非用户在同一句里明确说“直接改，不用再问”，否则不得跳过确认。
+- 发现问题只在对应项目提 issue，不修改文件、不提交、不 push、不打 tag、
+  不改 CI、不发 release/APK/AAB。
+- 提 issue 前说明：仓库、标题、正文要点、影响范围；用户已明确要求提 issue 时可直接执行。
+- 只有用户明确要求“修改某个其他项目”时，才进入修改流程，并且必须先说明：
+  1. 为什么要动这个项目，与当前任务是什么关系；
+  2. 准备修改哪些文件、执行哪些命令；
+  3. 风险是什么、准备怎么验证；
+  4. 等用户明确回复“可以 / 继续 / 同意”后再执行。
 - 未经明确许可，不得替用户决定其他项目的版本号、发布节奏或回滚。
 
 ## 为什么需要 shim（别把它删了）
@@ -98,7 +92,7 @@ make deb   VERSION=2.2.5          # → dist/opencode_2.2.5+mirror1_aarch64.deb
 make install                      # dpkg -i 最新 dist/*.deb（镜像线包 Depends: clang）
 make smoke                        # 需已安装 + tmux；失败非 0
 make smoke-static                 # 解包 dist/ 最新 deb，无需设备
-make smoke-release TAG=v2.2.7+termux3   # 从 release 下载、安装、真机冒烟
+make smoke-release TAG=v2.3.0+termux1   # 从 release 下载、安装、真机冒烟
 bash scripts/e2e-scenarios.sh [sandbox]
                                   # 6 个交互 + 2 项落盘；需模型/网络；
                                   # 默认沙箱 $HOME/tmp/oc-sandbox，绝不在仓库目录跑
@@ -106,8 +100,8 @@ bash scripts/e2e-scenarios.sh [sandbox]
 # 只能在 x86_64 Linux / CI 跑（NDK 的 clang 是 x86_64，Termux 上跑不了）
 NDK_ROOT=/path/to/ndk \
   PATH=/path/to/zig-0.17.0:/path/to/bun:$PATH \
-  make source-deb VERSION=2.2.7 REV=3
-                                  # → dist/opencode_2.2.7+termux3_aarch64.deb
+  make source-deb VERSION=2.3.0 REV=1
+                                  # → dist/opencode_2.3.0+termux1_aarch64.deb
 ```
 
 - `make source-deb` 需要 NDK r27c、**zig 0.17.0**（脚本会拿 `spike` 拉下来的

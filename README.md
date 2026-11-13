@@ -78,9 +78,9 @@ opencode update --check    # 仅检查是否有新版本
 如果想手动下载 `.deb` 包安装：
 
 ```sh
-# 当前最新版本：v2.2.7+termux3
+# 当前最新版本：v2.3.0+termux1
 pkg install -y curl jq
-id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.2.7+termux3" \
+id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.3.0+termux1" \
      | jq -r '.assets[] | select(.name|endswith(".deb")) | .id')
 curl -sSL -C - -H 'Accept: application/octet-stream' -o opencode.deb \
   "https://api.github.com/repos/jcz2020/opencode-termux/releases/assets/$id"
@@ -90,7 +90,7 @@ dpkg -i opencode.deb
 ### 装完验证
 
 ```sh
-opencode --version      # → opencode v2.2.7
+opencode --version      # → opencode v2.3.0
 oc                      # 短链，和 opencode 完全等价
 ```
 

@@ -52,8 +52,8 @@ cd opencode-termux
 export NDK_ROOT=$PWD/android-ndk-r27c
 export PATH="$PWD/zig-x86_64-linux-0.17.0:$PWD/bun-linux-x64:$PATH"
 
-make source-deb VERSION=2.2.7 REV=3
-# → dist/opencode_2.2.7+termux3_aarch64.deb (+ .sha256)
+make source-deb VERSION=2.3.0 REV=1
+# → dist/opencode_2.3.0+termux1_aarch64.deb (+ .sha256)
 ```
 
 装到设备上：
@@ -70,7 +70,7 @@ make smoke          # 在 tmux 真 tty 里起 TUI，检查渲染和版本号
 `.github/workflows/build-deb-source.yml`：
 
 ```sh
-gh workflow run build-deb-source -f version=2.2.7 -f rev=3 -f publish=true
+gh workflow run build-deb-source -f version=2.3.0 -f rev=1 -f publish=true
 ```
 
 它会依次装上 bun/zig/NDK/rust，跑 `scripts/build-source-deb.sh`，产出 deb，
@@ -164,7 +164,7 @@ make check-16kb                   # 解包最新 dist/*.deb 并校验
 
 ## 想改点东西
 
-- **换 opencode 版本**：`make source-deb VERSION=2.2.7`（上游 tag 形如 `v2.2.7`）
+- **换 opencode 版本**：`make source-deb VERSION=2.3.0`（上游 tag 形如 `v2.3.0`）
 - **改 shim**：改 `src/noheap.c`，`make source-deb` 会重新编
 - **改 TUI 行为**：opentui 的 Zig 源码在 `spike/libopentui-android/build.sh` 拉下来的那份里
 - **换 API level**：`API=28 make source-deb`（默认 30）
