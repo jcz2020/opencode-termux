@@ -81,6 +81,10 @@ grep -qE 'Pointer exceeds safe integer' <<<"$screen" && fail "仍然命中 point
 ver="$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' <<<"$screen" | tail -1 || true)"
 echo "OK: TUI 正常渲染${ver:+（版本 $ver）}"
 
+# ── 4.5 2.3.0 后台服务 ensure 链路 ──────────────────────────────
+echo "==> 验 2.3.0 后台服务（隔离 XDG）"
+bash "$(cd "$(dirname "$0")" && pwd)/smoke-service.sh"
+
 # ── 5. shell 工具（bun-pty 那条链） ─────────────────────────────
 echo "==> 验 shell 工具（bun-pty）"
 if command -v python3 >/dev/null; then

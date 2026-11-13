@@ -215,11 +215,11 @@ export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
 export OPENTUI_NATIVE_LIB="$P/lib/opencode/libopentui.so"
 export BUN_PTY_LIB="$P/lib/opencode/librust_pty.so"
 
-if [ -x "/system/bin/linker64" ] && [ -f "$P/bin/opencode.real" ]; then
-  exec /system/bin/linker64 "$P/bin/opencode.real" "$@"
-else
-  exec "$P/bin/opencode.real" "$@"
-fi
+# 2.3.0 起 TUI 会用 process.execPath 重新拉起 `serve --service`。
+# 不能经过 /system/bin/linker64：Bun 会把 process.execPath 报成 linker64，
+# 子进程命令变成 `linker64 serve --service`，报 expected absolute path 后退出。
+# Termux prefix 本身可执行，直接 exec 才能让 Bun 拿到正确的 opencode.real 路径。
+exec "$P/bin/opencode.real" "$@"
 WRAP
 chmod 755 "$BUILD/$PREFIX_DIR/bin/opencode"
 

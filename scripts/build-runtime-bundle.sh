@@ -152,11 +152,11 @@ export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
 [ -f "$P/lib/opencode/librust_pty.so" ] && export BUN_PTY_LIB="$P/lib/opencode/librust_pty.so"
 
 # 双重保障启动：若直接 exec 遇到权限限制，尝试通过 system linker 启动
-if [ -x "/system/bin/linker64" ] && [ -f "$P/bin/opencode.real" ]; then
-  exec /system/bin/linker64 "$P/bin/opencode.real" "$@"
-else
-  exec "$P/bin/opencode.real" "$@"
-fi
+# 2.3.0 起 TUI 会用 process.execPath 重新拉起 `serve --service`。
+# 不能经过 /system/bin/linker64：Bun 会把 process.execPath 报成 linker64，
+# 子进程会执行 `linker64 serve --service` 并失败。bundle 必须放在可执行目录
+# （Termux prefix 或 App 的 nativeLibraryDir）；filesDir 受 W^X 限制，不能直接 exec。
+exec "$P/bin/opencode.real" "$@"
 WRAP
 chmod 755 "$STAGE/usr/bin/opencode" "$STAGE/usr/bin/opencode.real"
 

@@ -1,14 +1,9 @@
-# opencode-termux 项目知识库
+# PROJECT KNOWLEDGE BASE
 
-> 目标：在 Termux/aarch64 上跑起 opencode。两条产线：
-> **源码线（主线）** 自己编 opencode + libopentui + bun-pty → tag `v<ver>+termux<N>`；
-> **镜像线（备选）** 重打包上游 bionic 二进制 + libnoheap → tag `v<ver>+mirror<N>`。
-> 文档分工：`README.md` 用户向 · `README.en.md` 英文 · `docs/BUILD.md` 编译指南 ·
-> `docs/LESSONS.md` 踩坑全集 · `docs/spike-android-bun.md` 开发记录。
-> 改用户可见行为时同步 README。
+**Generated:** 2026-11-13 · **Commit:** 1400fb7 · **Branch:** main
 
-**现状**：`v2.3.0+termux1` 已发布并通过 `make smoke-static`；runtime bundle 内置 git/rg；源码线已在本机和 CI 跑通。
-已实现一键安装脚本（`install-termux.sh`，国内多镜像加速）与 `opencode update` 拦截接管。
+## OVERVIEW
+在 Termux/aarch64 上构建并发布 opencode。源码线（主线）自编 opencode + libopentui + bun-pty，tag `v<ver>+termux<N>`；镜像线（备选）重打包上游 bionic 二进制 + libnoheap，tag `v<ver>+mirror<N>`。当前发布 `v2.3.0+termux1`，runtime bundle 内置 git/rg。
 
 ## 其他项目：只读审查 + 提 issue，不直接改（强制）
 
@@ -24,41 +19,36 @@
   4. 等用户明确回复“可以 / 继续 / 同意”后再执行。
 - 未经明确许可，不得替用户决定其他项目的版本号、发布节奏或回滚。
 
-## 为什么需要 shim（别把它删了）
+## WHERE TO LOOK
+| 任务 | 位置 | 备注 |
+|---|---|---|
+| 打包/安装/冒烟 | `scripts/` | 先读 `scripts/AGENTS.md` |
+| 原生编译 | `spike/*/build.sh`、`src/noheap.c` | 只能在 x86_64 跑 |
+| 发版/跟进上游 | `.github/workflows/` | tag 规则见“网络/发布” |
+| 用户可见行为 | `README.md` / `README.en.md` | 改行为必须同步 |
+| 历史踩坑 | `docs/LESSONS.md` | 部分结论会过期 |
 
-Android 11+ 的 bionic 给堆指针打 top-byte tag，`malloc` 返回 `0xb4000077f0c1b6f0`；
-bun 的 FFI 把它当 JS number 传给 libopentui 时超过 2^53 →
-`Error: Pointer exceeds safe integer range`。**这是运行时问题，与编译无关**
-（2.1.4 / 2.2.5 崩法相同）。`src/noheap.c` 在进程启动时执行
-`mallopt(M_BIONIC_SET_HEAP_TAGGING_LEVEL, M_HEAP_TAGGING_LEVEL_NONE)`，
-由 wrapper 用 `LD_PRELOAD` 加载。
+## CODE MAP（入口点）
+| 入口 | 作用 | 运行位置 |
+|---|---|---|
+| `make source-deb` | 三份源码 → 四个件 → ABI 校验 → deb + bundle | x86_64/CI |
+| `make deb` | 上游包 → 解包 → 加 shim → deb | 设备 |
+| `make runtime-bundle` | deb/rootfs → tar.zst + manifest | 设备 |
+| `make install` | dpkg -i 最新 dist/*.deb，清旧 diversion | 设备 |
+| `make smoke` / `make smoke-service` | TUI 渲染 / 2.3.0 后台服务 ensure | 设备 |
+| `make smoke-static` / `make smoke-release` | 静态体检 / release 装机冒烟 | 任意 / 设备 |
+| `scripts/e2e-scenarios.sh` | 沙箱 6 交互 + 2 落盘核对 | 设备 + 模型 |
 
 ## STRUCTURE
 
 ```
-Makefile               入口（fetch/deb/source-deb/runtime-bundle/install/smoke/verify-abi/check-16kb/clean）
-src/noheap.c           关堆 tagging 的 6 KB LD_PRELOAD shim
-scripts/
-  fetch.sh             取上游 pkg.tar.xz（走 release asset API）+ .MTREE sha256 校验
-  build-deb.sh         镜像线：解包 → 编 shim → 组装 rootfs → dpkg-deb → bundle
-  build-source-deb.sh  源码线：取三份源码 → 编四个件 → 验 ABI → 打包 → bundle
-  build-runtime-bundle.sh 制作独立的 tar.zst 运行时 bundle + runtime-manifest.json
-  bundle-termux-tools.sh 把固定版本 git/rg + 依赖 .so 收进 runtime bundle
-  install-termux.sh    一键安装/更新脚本（国内网络自动多源镜像加速与断点续传）
-  install.sh           dpkg -i（会先清理老的 dpkg-divert 手工安装）
-  smoke.sh             tmux 真 tty 起 TUI，断言主界面 + 版本
-  smoke-static.sh      解包 deb 做静态体检，不需要设备
-  smoke-release.sh     下载某个 release 的 deb → 安装 → 真机冒烟
-  e2e-scenarios.sh     沙箱里跑 6 个真实交互 + 2 项落盘核对
-  verify-abi.sh        FFI 符号 / bionic 依赖比对（build-source-deb 会调用）
-  check-16kb-pages.py  校验所有 PT_LOAD 的 p_align >= 0x4000（Android 15/16）
-  abi-symbols.py       精确提取 @opentui/core 的 nativeSymbols 键
-  push-api.sh          github.com 的 git push 不通时，用 Git Data API 推提交
-spike/{libopentui,bun-pty,opencode}-android/build.sh
-                      源码线真正的编译逻辑，不是一次性脚本（build-source-deb 直接调用）
-.github/workflows/    build-deb-source（主线）· build-deb（镜像线）·
-                      watch-upstream（每 6h）· smoke-device · spike-*
-cache/ build/ dist/   gitignore；`make clean` 会连 dist/ 一起删
+Makefile            入口目标（见 COMMANDS）
+src/noheap.c        关 bionic 堆 tagging 的 LD_PRELOAD shim
+scripts/            取源码/打包/安装/冒烟/推送（细节见 scripts/AGENTS.md）
+spike/*/build.sh    源码线真正的编译逻辑，被 build-source-deb.sh 调用
+.github/workflows/  build-deb-source · build-deb · watch-upstream(6h) · smoke-device · spike-*
+docs/               BUILD 编译指南 · LESSONS 踩坑全集 · spike-android-bun 开发记录
+cache/ build/ dist/ gitignore；make clean 连 dist/ 一起删
 ```
 
 ## 包内布局（关键约束）
@@ -75,44 +65,36 @@ cache/ build/ dist/   gitignore；`make clean` 会连 dist/ 一起删
 | `lib/opencode/opencode-updater.sh` | ✓（更新脚本） | ✓ |
 | `lib/opencode/libopencode-crhandler.so` | — | ✓（上游自带） |
 
-- **真二进制必须留在 `bin/`**：它有 `RUNPATH=$ORIGIN/../lib/opencode`；镜像线的上游
-  二进制还依赖 `DT_NEEDED` 第一项 `libopencode-crhandler.so`。挪走就找不到这些库。
-- **不要 `LD_PRELOAD` crhandler**（镜像线）：它已经是 `DT_NEEDED`，只需 preload
-  `libnoheap.so`。
-- **不要 upx 压二进制**：压过之后动态段不可见，`DT_NEEDED`/RUNPATH 修复失效。
-- 包名沿用 `opencode`，版本加后缀 → `dpkg -i` 是升级不是冲突；所有文件归 dpkg 管。
-  不要再用 dpkg-divert 手工方案。
+- **真二进制必须留在 `bin/`**：它有 `RUNPATH=$ORIGIN/../lib/opencode`；镜像线上游二进制还依赖 `DT_NEEDED` 第一项 `libopencode-crhandler.so`。
+- 包名沿用 `opencode`，版本加后缀 → `dpkg -i` 是升级；所有文件归 dpkg 管，不要回到 dpkg-divert 手工方案。
+
+## CONVENTIONS
+- shebang 分流：设备脚本用 `#!/data/data/com.termux/files/usr/bin/bash`（Android 没有 `/usr/bin/env`），CI/通用脚本用 `#!/usr/bin/env bash`。
+- 版本：下一修订号 = 已有最大 `+termux<N>` + 1，不覆盖已发布 release。
+- 改用户可见行为同步 README；文档里的数字和链接会过期，改完顺手核对。
+
+## ANTI-PATTERNS
+- 不要 upx 压二进制（动态段不可见，DT_NEEDED/RUNPATH 修复失效）；不要挪 `opencode.real` 出 `bin/`。
+- 镜像线不要 `LD_PRELOAD` crhandler（已是 `DT_NEEDED`），只 preload `libnoheap.so`。
+- 不要在正在运行的 opencode 会话里 `dpkg -i` 新版本：会替换它自己的后台服务并取消当前命令；安装与 `make smoke` 分开执行。
+- YAML：内联值后不能跟 `# 注释`；`run: |` 里不要嵌 heredoc，用 `printf` 拼字符串。
+- 脚本层的 SIGPIPE、归档、umask 陷阱见 `scripts/AGENTS.md`。
 
 ## COMMANDS
 
 ```sh
-# 设备上可跑（镜像线 + 冒烟）
-make fetch VERSION=2.2.5          # 上游包进 cache/，按 .MTREE 校验 sha256
-make deb   VERSION=2.2.5          # → dist/opencode_2.2.5+mirror1_aarch64.deb
-make install                      # dpkg -i 最新 dist/*.deb（镜像线包 Depends: clang）
-make smoke                        # 需已安装 + tmux；失败非 0
-make smoke-static                 # 解包 dist/ 最新 deb，无需设备
-make smoke-release TAG=v2.3.0+termux1   # 从 release 下载、安装、真机冒烟
-bash scripts/e2e-scenarios.sh [sandbox]
-                                  # 6 个交互 + 2 项落盘；需模型/网络；
-                                  # 默认沙箱 $HOME/tmp/oc-sandbox，绝不在仓库目录跑
-
-# 只能在 x86_64 Linux / CI 跑（NDK 的 clang 是 x86_64，Termux 上跑不了）
-NDK_ROOT=/path/to/ndk \
-  PATH=/path/to/zig-0.17.0:/path/to/bun:$PATH \
-  make source-deb VERSION=2.3.0 REV=1
-                                  # → dist/opencode_2.3.0+termux1_aarch64.deb
+make fetch VERSION=2.3.0 && make deb VERSION=2.3.0        # 镜像线
+NDK_ROOT=... PATH=... make source-deb VERSION=2.3.0 REV=2 # 源码线，仅 x86_64/CI
+make install && make smoke                                # 设备：TUI + 后台服务
+make smoke-service                                       # 只测后台服务（隔离 XDG）
+make smoke-static && make check-16kb                      # 任意
+make smoke-release TAG=v2.3.0+termux1                     # release 装机冒烟
+bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓库跑
 ```
+- `make source-deb` 需要 NDK r27c、**zig 0.17.0**（脚本按 opentui `.zig-version` 严格比对）、bun、cargo + `aarch64-linux-android`、jq；`API=28` 可换 API level（默认 30）。
+- `make verify-abi` 依赖 dist/build 解包产物；日常直接调 `scripts/verify-abi.sh`。
 
-- `make source-deb` 需要 NDK r27c、**zig 0.17.0**（脚本会拿 `spike` 拉下来的
-  opentui `.zig-version` 严格比对）、bun、cargo + `aarch64-linux-android` target、jq。
-- 发布版本号：下一修订号 = 已有最大 `+termux<N>` + 1，**不要覆盖已发布 release**
-  （`watch-upstream` 已按这个规则算）。
-- `make verify-abi` 依赖 `dist/`/`build/` 里的解包产物；日常直接用
-  `scripts/verify-abi.sh <libopentui.so> <librust_pty.so> <@opentui/core 目录> <bun-pty 目录>`。
-- `API=28 make source-deb ...` 可换 API level（默认 30）。
-
-## 源码线的五个硬坑
+## 源码线的六个硬坑
 
 1. **原生库 / JS / 包版本必须对齐**。`@opentui/*` 与 `libopentui.so` 不一致时，
    静态检查看不出来，运行时才报 `ot_session_get_renderer_state failed: InvalidArgument`。
@@ -137,6 +119,11 @@ NDK_ROOT=/path/to/ndk \
    复制成 `libgit.so` / `librg.so`，运行时从 `nativeLibraryDir` 符号链接回
    `usr/bin`。所以 bundle 新增工具时必须同时更新 App 侧映射，改完用
    `bundle-termux-tools.sh` + `prepare-jnilibs.sh` 两端验证。
+6. **2.3.0 的 wrapper 不能经过 `/system/bin/linker64`**。后台服务用
+   `process.execPath` 重新 exec 自己；经 linker 启动时 execPath 变成 linker64，
+   子进程执行 `linker64 serve --service`，报 `expected absolute path: "serve"`。
+   wrapper 必须直接 `exec "$P/bin/opencode.real"`。`smoke-static.sh` 会拒绝含
+   linker64 的 wrapper，`make smoke-service` 用隔离 XDG 验证服务拉起。
 
 另外：CI 用官方 `bun-linux-aarch64-android`（`BUN_RELEASE=bun-v1.4.4`），
 不需要自己交叉编 bun。bun 1.4 的 isolated 安装会把包放到
@@ -144,50 +131,16 @@ NDK_ROOT=/path/to/ndk \
 不要写死 `node_modules/<pkg>`。
 
 ## 网络 / 发布（本机实测，结论会过期）
+- github.com 时通时不通；api.github.com / objects.githubusercontent.com / npm 稳定。下载一律走 release asset API（不拼 `releases/download/...` 直链）。
+- push 先 `git push origin main`；TLS RST 时用 `scripts/push-api.sh`（blob→tree→commit→ref）。远端 SHA 必然不同但 tree 一致，进度在 `.git/api-push-state`；恢复后先 fetch 核对再 force。
+- API 建 tag 不触发 push 事件 → 发版/跟进用 `gh workflow run`。
+- 镜像线 tag 匹配 `'v*\+mirror*'`（glob 里 `+` 要转义），另有 if 兜底。
+- 上游 `releases/latest` 指向 v1；v2 要自己按 semver 取最大。npm 的 aarch64 只到 1.19.5（v1），v2 只能源码编。
 
-- `github.com` **时通时不通**；`api.github.com` / `objects.githubusercontent.com` /
-  `registry.npmjs.org` 稳定。自动化脚本下载一律走 **release asset API**
-  （302 到签名 URL），不要拼 `releases/download/...` 直链。
-- 推送：先 `git push origin main`。失败典型报错是 github.com:443 TLS RST
-  （`unexpected eof while reading`）→ 用 `scripts/push-api.sh`（blob → tree →
-  commit → update ref）。API 推过的 commit SHA 与本地**必然不同**（GitHub 把时区
-  归一化成 UTC），但 tree 逐字节一致；进度记在 `.git/api-push-state`。
-  之后 `git push` 恢复时会 `fetch first`：先 `git fetch origin main` 核对 tree，
-  再 `git push --force origin main` 对齐（仓库只有自己在推）。
-- **API 建 tag 不会触发 `push` 事件** → 发版/跟进一律用 `gh workflow run`。
-- 镜像线 tag 形如 `v2.2.5+mirror1`，workflow 的触发模式因此写成
-  `'v*\+mirror*'`：GitHub glob 里 `+` 是特殊字符（前一个字符重复 ≥1 次），
-  匹配字面量必须转义；不要写成 `v*-mirror`。job 里还有一层 `if` 兜底，
-  源码线 tag（`+termux<N>`）不会误跑镜像线打包。
-- 上游 `anomalyco/opencode` 的 `releases/latest` 指向 v1 维护线（1.19.5）；
-  要 v2 主线必须自己拉 release 列表按 semver 取最大（`watch-upstream` 已这么做）。
-- npm 的 `opencode-linux-arm64` 最高 1.19.5（v1），v2 的 aarch64 二进制不存在，
-  只能源码编。
+## 验证
+`make smoke-static` →（装机）`make smoke` → `scripts/e2e-scenarios.sh`。**“能渲染”不等于“能用”**：曾漏掉 `Missing OpenTUI asset`，TUI 起来后一发消息就崩；CI 绿 ≠ 事做成了（`$GITHUB_OUTPUT` 没写成时 step 仍报 success）。
 
-## 验证与常见坑
-
-改完代码的最小验证顺序：`make smoke-static` →（装到设备）`make smoke` →
-`bash scripts/e2e-scenarios.sh`。**“能渲染”不等于“能用”**：曾漏掉
-`Missing OpenTUI asset`，TUI 起来后一发消息就崩。
-
-- CI 绿 ≠ 事做成了：条件分支的 workflow 要确认输出真的产生
-  （曾因 `$GITHUB_OUTPUT` 没写成导致 dispatch 静默跳过，step 仍报 success）。
-- 不要写 `strings f | grep -q`：`grep -q` 提前退出会让 `strings` 收到 SIGPIPE，
-  在 `set -o pipefail` 下整条管道被判失败。先落盘再匹配。
-- 找 FFI 符号不要用宽泛 grep（`grep -oE 'ot_[a-z_]+:'` 会把注释/字符串算进来）；
-  用 `scripts/abi-symbols.py` 精确取 `nativeSymbols` 的键。
-- YAML：内联值后面不能跟 `# 注释`；`run: |` 块里不要嵌 heredoc，用 `printf` 拼字符串。
-- Termux 的 umask 077 → `dpkg-deb` 会拒收 700 的 control 目录；打包后
-  `find "$BUILD" -type d -exec chmod 755 {} +`。
-- 大文件上别用 `dpkg-deb --fsys-tarfile | tar -xO | file -`（会拿到空输入）；
-  先 `dpkg-deb -x` 解包再检查。
-- shebang 不要“统一”：设备上跑的脚本用绝对路径
-  `#!/data/data/com.termux/files/usr/bin/bash`（Android 没有 `/usr/bin/env`），
-  CI 上跑的脚本才用 `#!/usr/bin/env bash`。
-- `make clean` 会删 `dist/`；二进制/缓存本来就不进 git。
-
-## 上游修复建议（可提 issue/PR）
-
-把 `mallopt(M_BIONIC_SET_HEAP_TAGGING_LEVEL, M_HEAP_TAGGING_LEVEL_NONE)` 加进上游
-`libopencode-crhandler.so`（它已经在做 SIGSYS 同类 shim）——之后镜像线的 wrapper 与
-`libnoheap.so` 都可以删掉。
+## NOTES
+- **为什么需要 shim**：Android 11+ bionic 给堆指针打 top-byte tag（`0xb4000077…`），bun FFI 当 JS number 传给 libopentui 超过 2^53 → `Pointer exceeds safe integer range`。`src/noheap.c` 启动时 `mallopt(M_BIONIC_SET_HEAP_TAGGING_LEVEL, M_HEAP_TAGGING_LEVEL_NONE)`，wrapper 用 `LD_PRELOAD` 加载；与编译无关（2.1.4/2.2.5 崩法相同）。
+- **wrapper 修复状态**：机制见硬坑 6。已发布的 `+termux1` 仍是旧 linker64 wrapper，修复随 `+termux2`。
+- 建议上游把 `mallopt(...)` 放进 `libopencode-crhandler.so`，之后镜像线 wrapper 与 `libnoheap.so` 可删。

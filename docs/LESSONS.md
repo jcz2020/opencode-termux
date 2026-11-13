@@ -247,6 +247,26 @@
      镜像续传失败时自动回退到 GitHub Release Asset API 签名直链并全新重试。
 - **教训**：**第三方镜像只能做传输加速，绝不能当成可信源**。SHA-256 校验和格式探测是底线。
 
+### 25. 2.3.0 改为后台服务后，wrapper 不能再经过 linker64
+
+- **怎么发现的**：2.3.0 把 TUI 和 HTTP 服务拆开，TUI 发现没有可用服务时，
+  用 `process.execPath` 重新执行 `serve --service`。wrapper 如果最后是
+  `exec /system/bin/linker64 "$P/bin/opencode.real"`，Bun 会把
+  `process.execPath` 报成 `/system/bin/linker64`，拼出的命令变成
+  `linker64 serve --service`，链接器立即报 `error: expected absolute path: "serve"`。
+- **后果**：服务永远起不来，TUI 重试会刷出上千条失败；`opencode --version`
+  仍然正常，所以只看版本号完全发现不了。
+- **怎么修**：
+  1. wrapper 直接 `exec "$P/bin/opencode.real" "$@"`，让 Bun 拿到真实路径；
+  2. `smoke-static.sh` 拒绝含 `linker64` 的 wrapper，并检查最后一条 `exec`
+     是 `opencode.real`；
+  3. 新增 `scripts/smoke-service.sh`：用隔离的 `XDG_STATE_HOME` + 随机端口
+     真正执行 `opencode service start/status/stop`，接入 `make smoke` 与
+     `smoke-release.sh`；
+  4. 安装与冒烟分开执行，避免 `dpkg -i` 替换掉正在运行的后台服务。
+- **教训**：**`process.execPath` 是 2.3.0 的接口**。涉及 wrapper/启动器的改动，
+  不能只验 `--version`，必须验“后台服务能不能被自己拉起来”。
+
 ---
 
 ## 六、可以推广的几条

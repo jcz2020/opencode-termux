@@ -92,6 +92,7 @@ gh workflow run build-deb-source -f version=2.3.0 -f rev=1 -f publish=true
 | `scripts/bundle-termux-tools.sh` | 把固定版本 git/rg 与依赖收进 runtime bundle |
 | `scripts/verify-abi.sh` | 比对 `@opentui/core` 要的 FFI 符号和 `.so` 导出的符号 |
 | `scripts/smoke-static.sh` | 解包 deb 做静态体检（不需要设备） |
+| `scripts/smoke-service.sh` | 设备上：隔离 XDG 启一次 2.3.0 后台服务 |
 | `scripts/smoke-release.sh` | 设备上：下载 release、装上、tmux 冒烟，**真发一条 prompt** |
 | `scripts/e2e-scenarios.sh` | 沙箱里跑 6 个真实交互场景（读文件/改文件/建文件/跑命令……）+ 2 项落盘核对 |
 
@@ -160,6 +161,20 @@ python3 scripts/check-16kb-pages.py <opencode.real> <*.so ...>
 make check-16kb                   # 解包最新 dist/*.deb 并校验
 ```
 
+### 5. 2.3.0 的 wrapper 必须直接 exec `opencode.real`
+
+2.3.0 起 TUI 会用 `process.execPath` 重新执行 `serve --service`。wrapper 如果
+经过 `/system/bin/linker64`，Bun 会把 execPath 报成 linker64，子进程变成
+`linker64 serve --service`，报 `expected absolute path: "serve"`，后台服务起不来。
+所以 wrapper 最后必须是：
+
+```sh
+exec "$P/bin/opencode.real" "$@"
+```
+
+`smoke-static.sh` 会拒绝含 `linker64` 的 wrapper；`make smoke-service` 会用隔离
+的 `XDG_STATE_HOME` 真正启动一次后台服务。
+
 ---
 
 ## 想改点东西
@@ -173,6 +188,7 @@ make check-16kb                   # 解包最新 dist/*.deb 并校验
 
 ```sh
 make smoke-static                 # 静态体检
+make smoke-service                # 2.3.0 后台服务启动（设备）
 bash scripts/e2e-scenarios.sh     # 沙箱里跑真实场景
 ```
 

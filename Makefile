@@ -1,7 +1,7 @@
 VERSION ?= 2.3.0
 REV     ?= 2   # 下一个待发布修订号（1 已发布，避免误覆盖）
 
-.PHONY: help fetch deb install smoke smoke-static smoke-release source-deb verify-abi check-16kb clean runtime-bundle
+.PHONY: help fetch deb install smoke smoke-service smoke-static smoke-release source-deb verify-abi check-16kb clean runtime-bundle
 
 help:
 	@echo "── 二进制重打包线（拿上游 bionic 二进制）──"
@@ -14,7 +14,8 @@ help:
 	@echo "make runtime-bundle                   # 制作独立运行时 bundle (tar.zst + manifest)"
 	@echo ""
 	@echo "── 冒烟与校验 ──"
-	@echo "make smoke                  # 在 tmux 真 tty 里起 TUI 冒烟（本机已装的包）"
+	@echo "make smoke                  # TUI + 2.3.0 后台服务冒烟（本机已装的包）"
+	@echo "make smoke-service          # 只测 2.3.0 后台服务启动（隔离 XDG）"
 	@echo "make smoke-static           # 解包 dist/*.deb 做静态体检（不需要设备）"
 	@echo "make smoke-release TAG=v2.3.0+termux1   # 从 release 拉 deb 装到设备再冒烟"
 	@echo "make verify-abi             # 只跑 FFI 符号/依赖校验"
@@ -40,6 +41,10 @@ runtime-bundle:
 
 smoke:
 	bash scripts/smoke.sh
+	bash scripts/smoke-service.sh
+
+smoke-service:
+	bash scripts/smoke-service.sh
 
 smoke-static:
 	bash scripts/smoke-static.sh $$(ls -1t dist/*.deb 2>/dev/null | head -1)
