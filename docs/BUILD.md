@@ -68,8 +68,8 @@ cd opencode-termux
 export NDK_ROOT=$PWD/android-ndk-r27c
 export PATH="$PWD/zig-x86_64-linux-0.17.0:$PWD/bun-linux-x64:$PATH"
 
-make source-deb VERSION=2.3.0 REV=2
-# → dist/opencode_2.3.0+termux2_aarch64.deb (+ .sha256)
+make source-deb VERSION=2.3.0 REV=3
+# → dist/opencode_2.3.0+termux3_aarch64.deb (+ .sha256)
 ```
 
 装到设备上：
@@ -86,7 +86,7 @@ make smoke          # 在 tmux 真 tty 里起 TUI，检查渲染和版本号
 `.github/workflows/build-deb-source.yml`：
 
 ```sh
-gh workflow run build-deb-source -f version=2.3.0 -f rev=2 -f publish=true
+gh workflow run build-deb-source -f version=2.3.0 -f rev=3 -f publish=true
 ```
 
 它会依次装上 bun/zig/NDK/rust，跑 `scripts/build-source-deb.sh`，产出 deb，

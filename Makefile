@@ -1,5 +1,5 @@
 VERSION ?= 2.3.0
-REV     ?= 3   # 下一个待发布修订号（2 已发布，避免误覆盖）
+REV     ?= 4   # 下一个待发布修订号（3 已发布，避免误覆盖）
 
 .PHONY: help fetch deb install smoke smoke-service smoke-static smoke-release source-deb verify-abi check-16kb check-tool-updates clean runtime-bundle
 
@@ -10,14 +10,14 @@ help:
 	@echo "make install                # 装最新的 dist/*.deb（自动清理旧 diversion）"
 	@echo ""
 	@echo "── 源码编译线（不依赖任何第三方打包产物）──"
-	@echo "make source-deb VERSION=2.3.0 REV=3   # 需要 NDK_ROOT / zig 0.17 / bun / rust"
+	@echo "make source-deb VERSION=2.3.0 REV=4   # 需要 NDK_ROOT / zig 0.17 / bun / rust"
 	@echo "make runtime-bundle                   # 制作独立运行时 bundle (tar.zst + manifest)"
 	@echo ""
 	@echo "── 冒烟与校验 ──"
 	@echo "make smoke                  # TUI + 2.3.0 后台服务冒烟（本机已装的包）"
 	@echo "make smoke-service          # 只测 2.3.0 后台服务启动（隔离 XDG）"
 	@echo "make smoke-static           # 解包 dist/*.deb 做静态体检（不需要设备）"
-	@echo "make smoke-release TAG=v2.3.0+termux2   # 从 release 拉 deb 装到设备再冒烟"
+	@echo "make smoke-release TAG=v2.3.0+termux3   # 从 release 拉 deb 装到设备再冒烟"
 	@echo "make verify-abi             # 只跑 FFI 符号/依赖校验"
 	@echo "make check-16kb             # 校验最新 dist/*.deb 的 16 KB 页对齐"
 	@echo "make check-tool-updates     # 对比 termux-tools.lock 与 Termux 仓库"
