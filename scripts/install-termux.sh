@@ -43,7 +43,7 @@ while [ $# -gt 0 ]; do
       echo "选项:"
       echo "  --check, -c       只检查是否有新版本，不执行下载与安装"
       echo "  --force, -f       强制下载并覆盖安装当前或指定版本"
-      echo "  --version, -v VER 安装指定版本（如 2.3.0+termux1 或 2.3.0）"
+      echo "  --version, -v VER 安装指定版本（如 2.3.0+termux2 或 2.3.0）"
       echo "  --dry-run         显示拟执行的下载与版本信息，不做改动"
       echo "  --help, -h        显示本帮助信息"
       exit 0
@@ -163,15 +163,45 @@ get_installed_version() {
 }
 
 # ── 5. 解析最新兼容 Release ──────────────────────────────────
+resolve_explicit_release() {
+  local target="${1#v}"
+
+  # 用户已经写完整 tag（2.3.0+termux2）→ 原样使用
+  if [[ "$target" =~ \+termux[0-9]+$ ]]; then
+    echo "$target"
+    return 0
+  fi
+
+  # 只给了上游版本（2.3.0）→ 选该版本下最高的 +termuxN。
+  # 例：2.3.0 现在有 termux1/termux2，应选 termux2，而不是硬编码 termux1。
+  if [[ "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    local api_url="https://api.github.com/repos/$REPO/releases?per_page=100"
+    local json_raw=""
+    json_raw="$(curl -sSL -m 8 -H 'Accept: application/vnd.github.v3+json' "$api_url" 2>/dev/null || true)"
+    if [ -n "$json_raw" ] && [ "$json_raw" != "null" ]; then
+      local best_tag
+      best_tag="$(printf '%s\n' "$json_raw" | jq -r '.[].tag_name // empty' 2>/dev/null \
+        | grep -F "v${target}+termux" \
+        | grep -oE '^v[0-9]+\.[0-9]+\.[0-9]+\+termux[0-9]+$' \
+        | sort -V | tail -1 || true)"
+      if [ -n "$best_tag" ]; then
+        echo "${best_tag#v}"
+        return 0
+      fi
+    fi
+    echo "WARN: 无法查询 $target 的 +termuxN 列表，回退到 +termux1" >&2
+    echo "${target}+termux1"
+    return 0
+  fi
+
+  # 其他形式（例如用户给了自定义 tag 前缀）保持旧行为
+  echo "${target}+termux1"
+}
+
 resolve_target_release() {
   local target="$1"
   if [ -n "$target" ]; then
-    # 若用户指定了版本
-    target="${target#v}"
-    if [[ ! "$target" =~ \+termux[0-9]+$ ]]; then
-      target="${target}+termux1"
-    fi
-    echo "$target"
+    resolve_explicit_release "$target"
     return 0
   fi
 
