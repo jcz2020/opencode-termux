@@ -78,9 +78,9 @@ opencode update --check    # check for available updates without installing
 To download the `.deb` package manually:
 
 ```sh
-# Current latest: v2.3.0+termux1
+# Current latest: v2.3.0+termux2
 pkg install -y curl jq
-id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.3.0+termux1" \
+id=$(curl -sS "https://api.github.com/repos/jcz2020/opencode-termux/releases/tags/v2.3.0+termux2" \
      | jq -r '.assets[] | select(.name|endswith(".deb")) | .id')
 curl -sSL -C - -H 'Accept: application/octet-stream' -o opencode.deb \
   "https://api.github.com/repos/jcz2020/opencode-termux/releases/assets/$id"

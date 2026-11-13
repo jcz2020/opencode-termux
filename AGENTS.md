@@ -3,7 +3,7 @@
 **Generated:** 2026-11-13 · **Commit:** 1400fb7 · **Branch:** main
 
 ## OVERVIEW
-在 Termux/aarch64 上构建并发布 opencode。源码线（主线）自编 opencode + libopentui + bun-pty，tag `v<ver>+termux<N>`；镜像线（备选）重打包上游 bionic 二进制 + libnoheap，tag `v<ver>+mirror<N>`。当前发布 `v2.3.0+termux1`，runtime bundle 内置 git/rg。
+在 Termux/aarch64 上构建并发布 opencode。源码线（主线）自编 opencode + libopentui + bun-pty，tag `v<ver>+termux<N>`；镜像线（备选）重打包上游 bionic 二进制 + libnoheap，tag `v<ver>+mirror<N>`。当前发布 `v2.3.0+termux2`，runtime bundle 内置 git/rg。
 
 ## 其他项目：只读审查 + 提 issue，不直接改（强制）
 
@@ -88,7 +88,7 @@ NDK_ROOT=... PATH=... make source-deb VERSION=2.3.0 REV=2 # 源码线，仅 x86_
 make install && make smoke                                # 设备：TUI + 后台服务
 make smoke-service                                       # 只测后台服务（隔离 XDG）
 make smoke-static && make check-16kb                      # 任意
-make smoke-release TAG=v2.3.0+termux1                     # release 装机冒烟
+make smoke-release TAG=v2.3.0+termux2                     # release 装机冒烟
 bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓库跑
 ```
 - `make source-deb` 需要 NDK r27c、**zig 0.17.0**（脚本按 opentui `.zig-version` 严格比对）、bun、cargo + `aarch64-linux-android`、jq；`API=28` 可换 API level（默认 30）。
@@ -142,5 +142,5 @@ bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓�
 
 ## NOTES
 - **为什么需要 shim**：Android 11+ bionic 给堆指针打 top-byte tag（`0xb4000077…`），bun FFI 当 JS number 传给 libopentui 超过 2^53 → `Pointer exceeds safe integer range`。`src/noheap.c` 启动时 `mallopt(M_BIONIC_SET_HEAP_TAGGING_LEVEL, M_HEAP_TAGGING_LEVEL_NONE)`，wrapper 用 `LD_PRELOAD` 加载；与编译无关（2.1.4/2.2.5 崩法相同）。
-- **wrapper 修复状态**：机制见硬坑 6。已发布的 `+termux1` 仍是旧 linker64 wrapper，修复随 `+termux2`。
+- **wrapper 修复状态**：机制见硬坑 6。`+termux1` 的旧 linker64 wrapper 已在 `+termux2` 修复；`smoke-static` / `make smoke-service` 做回归。
 - 建议上游把 `mallopt(...)` 放进 `libopencode-crhandler.so`，之后镜像线 wrapper 与 `libnoheap.so` 可删。
