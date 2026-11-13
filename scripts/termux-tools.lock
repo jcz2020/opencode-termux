@@ -3,6 +3,12 @@
 # Update flow: edit this file -> make runtime-bundle -> 16KB gates -> new +termuxN release.
 git|2.56.1|pool/main/g/git/git_2.56.1_aarch64.deb|3343f56fc99e2f0631a553a39789769495435cb07b6ffb3c71a7fcb7bd561e95
 ripgrep|15.2.0|pool/main/r/ripgrep/ripgrep_15.2.0_aarch64.deb|38e28bc297000517b24702568a483eca7dc3323eb6bdccc9033f031776bdcc6c
+gh|2.104.0|pool/main/g/gh/gh_2.104.0_aarch64.deb|2f8d0b9d51ed73edbe2487063821bbd3cba36d79e6d5bfa4ada017f26519baef
+fd|10.5.2|pool/main/f/fd/fd_10.5.2_aarch64.deb|8578ee6a7aeb457b0c2f7fd7657c3f11191970cdf09699fc268577c5d5ca3d7a
+jq|1.8.2|pool/main/j/jq/jq_1.8.2_aarch64.deb|0eac323797c5d70c35f5fb935c58b5fd7528937584a1aebbd5c5b965d1663afa
+oniguruma|6.9.10-1|pool/main/o/oniguruma/oniguruma_6.9.10-1_aarch64.deb|93675574c560cd2f75b32f0bd2fdaa693419dd6ac0e6c71c26ce5fd928cae1c5
+busybox|1.38.0-1|pool/main/b/busybox/busybox_1.38.0-1_aarch64.deb|1bb7f1d4c00cadd0e1117b6dd7110311b8bf749ef00b486e96cfdc11c98f8fd9
+libandroid-selinux|14.0.0.11-1|pool/main/liba/libandroid-selinux/libandroid-selinux_14.0.0.11-1_aarch64.deb|00afd8c34087c2864737b51fd9d104dc5e955f6ec3c0f50c0c7ef5b4a56866b9
 pcre2|10.49|pool/main/p/pcre2/pcre2_10.49_aarch64.deb|c27995e5f52b8ecc9b8b3e662eb08e49f82a18bfd3f34343936acc7b23964724
 libcurl|8.23.0|pool/main/libc/libcurl/libcurl_8.23.0_aarch64.deb|2011bb9709261bb3d5ecaa6672faa333be14cf48ad4af37031e3e365309557ac
 libnghttp2|1.71.0|pool/main/libn/libnghttp2/libnghttp2_1.71.0_aarch64.deb|ae33e7b21e0636be8686b9b13a20e31267f047f69cb26b4befd70c9a9bae221e

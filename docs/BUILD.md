@@ -18,7 +18,11 @@
 |---|---|---|
 | `git` | 2.56.1（Termux） | agent 的 status/diff/add/commit/checkout/stash 等；含 HTTPS helper |
 | `ripgrep` | 15.2.0（Termux） | opencode Grep/Glob |
-| 依赖库 | libcurl / openssl / pcre2 / zlib / expat / iconv 等 | 固定 sha256，全部 16 KB 对齐 |
+| `gh` | 2.104.0（Termux） | GitHub CLI |
+| `fd` | 10.5.2（Termux） | 文件查找 |
+| `jq` | 1.8.2（Termux） | JSON 处理 |
+| `busybox` | 1.38.0（Termux） | 常用 shell 工具集 |
+| 依赖库 | libcurl / openssl / pcre2 / oniguruma / zlib / expat / iconv 等 | 固定 sha256，全部 16 KB 对齐 |
 
 这些工具由 `scripts/bundle-termux-tools.sh` 收进 `runtime-*.tar.zst` 的
 `usr/bin`、`usr/lib`、`usr/libexec/git-core`，并附带 git templates 与 CA 证书。

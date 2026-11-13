@@ -35,8 +35,9 @@ This project fixes it, and **depends on no third-party Termux packaging**:
 | `libnoheap.so` (disable heap tagging) | 6 KB of C in this repo |
 
 The standalone runtime bundle additionally ships `git` 2.56.1 (with HTTPS helper),
-`ripgrep` 15.2.0 and their shared-library dependencies for Android apps to execute
-from `nativeLibraryDir`; the deb does not duplicate these tools.
+`ripgrep` 15.2.0, `gh` 2.104.0, `fd` 10.5.2, `jq` 1.8.2, `busybox` 1.38.0
+and their shared-library dependencies for Android apps to execute from
+`nativeLibraryDir`; the deb does not duplicate these tools.
 
 ---
 

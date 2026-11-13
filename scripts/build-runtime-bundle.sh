@@ -99,6 +99,8 @@ for so in "$STAGE"/usr/lib/opencode/*.so; do
   [ -e "$so" ] && ELF_CHECK+=("$so")
 done
 for f in "$STAGE/usr/bin/git" "$STAGE/usr/bin/rg" \
+         "$STAGE/usr/bin/gh" "$STAGE/usr/bin/fd" "$STAGE/usr/bin/jq" \
+         "$STAGE/usr/bin/busybox" \
          "$STAGE/usr/libexec/git-core/git-remote-http"; do
   [ -e "$f" ] && ELF_CHECK+=("$f")
 done

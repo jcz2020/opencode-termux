@@ -4,6 +4,8 @@
 # 把 opencode agent 常用的 CLI 工具及其 Termux 依赖收进 runtime bundle：
 #   usr/bin/git                 git 本体（本地 status/diff/add/commit/checkout/stash 全是 builtin）
 #   usr/bin/rg                  ripgrep（opencode 的 Grep/Glob 依赖）
+#   usr/bin/gh / fd / jq        常用开发 CLI
+#   usr/bin/busybox             常用 shell 工具集
 #   usr/libexec/git-core/...    git-remote-http(s)，HTTPS fetch/push 用
 #   usr/lib/*.so*               git/rg/libcurl/openssl/pcre2 等依赖
 #   usr/share/git-core/templates
@@ -89,14 +91,25 @@ done < "$LOCK"
 [ "$pkg_count" -gt 0 ] || { echo "ERROR: termux-tools.lock 没有有效包" >&2; exit 1; }
 echo "    已准备 $pkg_count 个 Termux 包"
 
-echo "==> 收集 git / rg 二进制"
+echo "==> 收集 CLI 二进制"
 GIT_USR="$(find "$EXTRACT/git" -type d -path '*/files/usr' | head -1)"
 RG_USR="$(find "$EXTRACT/ripgrep" -type d -path '*/files/usr' | head -1)"
-[ -n "$GIT_USR" ] && [ -x "$GIT_USR/bin/git" ] || { echo "ERROR: git 包结构异常" >&2; exit 1; }
-[ -n "$RG_USR" ] && [ -x "$RG_USR/bin/rg" ] || { echo "ERROR: ripgrep 包结构异常" >&2; exit 1; }
+GH_USR="$(find "$EXTRACT/gh" -type d -path '*/files/usr' | head -1)"
+FD_USR="$(find "$EXTRACT/fd" -type d -path '*/files/usr' | head -1)"
+JQ_USR="$(find "$EXTRACT/jq" -type d -path '*/files/usr' | head -1)"
+BB_USR="$(find "$EXTRACT/busybox" -type d -path '*/files/usr' | head -1)"
+for pair in "git:$GIT_USR" "ripgrep:$RG_USR" "gh:$GH_USR" "fd:$FD_USR" "jq:$JQ_USR" "busybox:$BB_USR"; do
+  label="${pair%%:*}"
+  usr="${pair#*:}"
+  [ -n "$usr" ] && [ -d "$usr/bin" ] || { echo "ERROR: $label 包结构异常" >&2; exit 1; }
+done
 
 install -m 755 "$GIT_USR/bin/git" "$STAGE_USR/bin/git"
 install -m 755 "$RG_USR/bin/rg" "$STAGE_USR/bin/rg"
+install -m 755 "$GH_USR/bin/gh" "$STAGE_USR/bin/gh"
+install -m 755 "$FD_USR/bin/fd" "$STAGE_USR/bin/fd"
+install -m 755 "$JQ_USR/bin/jq" "$STAGE_USR/bin/jq"
+install -m 755 "$BB_USR/bin/busybox" "$STAGE_USR/bin/busybox"
 install -m 755 "$GIT_USR/libexec/git-core/git-remote-http" \
   "$STAGE_USR/libexec/git-core/git-remote-http"
 
@@ -110,12 +123,10 @@ ln -sfn git-remote-http "$STAGE_USR/libexec/git-core/git-remote-https"
 cp -a "$GIT_USR/share/git-core/templates" "$STAGE_USR/share/git-core/"
 
 echo "==> 收集依赖 .so"
-for pkg in libcurl libnghttp2 libnghttp3 libngtcp2 libssh2 openssl zlib libexpat libiconv pcre2; do
-  libdir="$(find "$EXTRACT/$pkg" -type d -path '*/files/usr/lib' | head -1)"
-  [ -n "$libdir" ] || { echo "ERROR: $pkg 缺少 usr/lib" >&2; exit 1; }
+while IFS= read -r libdir; do
   find "$libdir" -maxdepth 1 \( -name '*.so' -o -name '*.so.*' \) \
     -exec cp -a -t "$STAGE_USR/lib" {} +
-done
+done < <(find "$EXTRACT" -type d -path '*/files/usr/lib' | sort)
 
 # HTTPS 证书。libcurl/openssl 默认路径是 Termux prefix，App 运行时会用
 # GIT_SSL_CAINFO 指到这里。
@@ -145,6 +156,18 @@ These binaries are built by the Termux project and distributed unmodified:
   https://github.com/git/git
 - ripgrep 15.2.0 — MIT / Unlicense
   https://github.com/BurntSushi/ripgrep
+- gh 2.104.0 — MIT License
+  https://github.com/cli/cli
+- fd 10.5.2 — MIT / Apache-2.0
+  https://github.com/sharkdp/fd
+- jq 1.8.2 — MIT License
+  https://github.com/jqlang/jq
+- oniguruma 6.9.10 — BSD 2-Clause
+  https://github.com/kkos/oniguruma
+- busybox 1.38.0 — GNU General Public License v2.0
+  https://busybox.net
+- libandroid-selinux — Apache License 2.0
+  https://github.com/termux/libandroid-selinux
 - PCRE2 10.49 — BSD 3-Clause
   https://github.com/PCRE2Project/pcre2
 - libcurl 8.23.0 — curl License
@@ -161,5 +184,6 @@ NOTICE
 chmod 644 "$STAGE_USR/licenses/THIRD-PARTY-TOOLS.md"
 
 echo "==> 工具已加入 bundle："
-du -sh "$STAGE_USR/bin/git" "$STAGE_USR/bin/rg" \
+du -sh "$STAGE_USR/bin/git" "$STAGE_USR/bin/rg" "$STAGE_USR/bin/gh" \
+  "$STAGE_USR/bin/fd" "$STAGE_USR/bin/jq" "$STAGE_USR/bin/busybox" \
   "$STAGE_USR/libexec/git-core/git-remote-http" "$STAGE_USR/lib" 2>/dev/null

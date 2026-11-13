@@ -33,8 +33,9 @@ bun 的 FFI 把这个指针当 JS number 传给 libopentui，数值超过 `2^53`
 | `librust_pty.so`（执行命令、终端面板） | Rust + NDK 自行编译 |
 | `libnoheap.so`（关掉堆 tagging） | 本仓库里 6 KB 的 C 代码 |
 
-独立的 runtime bundle 还内置 `git` 2.56.1（含 HTTPS helper）、`ripgrep` 15.2.0
-及依赖库，供 Android App 在 `nativeLibraryDir` 执行；deb 本身不重复打包这些工具。
+独立的 runtime bundle 还内置 `git` 2.56.1（含 HTTPS helper）、`ripgrep` 15.2.0、
+`gh` 2.104.0、`fd` 10.5.2、`jq` 1.8.2、`busybox` 1.38.0 及依赖库，
+供 Android App 在 `nativeLibraryDir` 执行；deb 本身不重复打包这些工具。
 
 ---
 
