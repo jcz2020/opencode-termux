@@ -62,10 +62,10 @@ check_wrapper_var LD_PRELOAD    'LD_PRELOAD='   "$P/lib/opencode/libnoheap.so"
 echo "==> wrapper 启动方式（2.3.0 service 架构）"
 # 2.3.0 的 TUI 用 process.execPath 拉起 `serve --service`。wrapper 一旦经过
 # linker64，Bun 会把 process.execPath 报成 linker64，服务永远起不来。
-if printf '%s' "$wrapper" | grep -q 'linker64'; then
-  bad "wrapper 仍包含 linker64；2.3.0 后台服务会启动失败"
+if printf '%s\n' "$wrapper" | grep -Eq '^[[:space:]]*exec .*linker64'; then
+  bad "wrapper 仍 exec linker64；2.3.0 后台服务会启动失败"
 else
-  ok "wrapper 不经过 linker64"
+  ok "wrapper 不 exec linker64"
 fi
 last_exec="$(printf '%s\n' "$wrapper" | awk '/^[[:space:]]*exec /{line=$0} END{print line}')"
 case "$last_exec" in
