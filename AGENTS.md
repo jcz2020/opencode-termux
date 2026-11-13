@@ -98,7 +98,7 @@ NDK_ROOT=/path/to/ndk \
   `scripts/verify-abi.sh <libopentui.so> <librust_pty.so> <@opentui/core 目录> <bun-pty 目录>`。
 - `API=28 make source-deb ...` 可换 API level（默认 30）。
 
-## 源码线的四个硬坑
+## 源码线的五个硬坑
 
 1. **原生库 / JS / 包版本必须对齐**。`@opentui/*` 与 `libopentui.so` 不一致时，
    静态检查看不出来，运行时才报 `ot_session_get_renderer_state failed: InvalidArgument`。
