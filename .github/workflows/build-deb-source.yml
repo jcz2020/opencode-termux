@@ -12,7 +12,7 @@ on:
       rev:
         description: '本项目修订号（termux<N>，默认下一个未发布修订）'
         required: true
-        default: '6'
+        default: '7'
       publish:
         description: '构建后创建 release'
         required: false
