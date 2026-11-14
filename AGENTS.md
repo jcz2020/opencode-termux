@@ -135,6 +135,7 @@ bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓�
 7. **2.3.0 的持久 PTY 需要 `opencode-pty` + 可写 socket 目录**。缺失时日志刷
    `process daemon unavailable` / `Executable not found in $PATH: "opencode-pty"`。
    `fetch-opencode-pty.sh` 从 npm 取固定版本的静态 musl 二进制装到 `bin/opencode-pty`；
+   `build-source-deb.sh` 会核对 `packages/core/package.json` 的 `@opencode/pty` 版本与 lock 一致；
    wrapper 注入 `OPENCODE_PTY_BIN` 和 `OPENCODE_PTY_SOCKET_DIR`（Android `/tmp` 不可写，
    路径还要短于 `SUN_LEN`）。`make smoke-pty` 验证 daemon 启停。
 
