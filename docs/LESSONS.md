@@ -320,11 +320,16 @@
   3. `ConfigDiscovery.discover` 盲目使用 `fs.up` 向上查找祖先目录，一路爬到 `/`、`/storage`、`/etc`，并在 `ConfigWatch.plan` 中注册父级 entries 监听，触发无权限报错 `EACCES`；
   4. `LocationWatcher` 原先仅监听 `.git/HEAD`，未对工作区目录建立递归监听，外部新建/改动无法推入 `FileSystem.Event.Changed`。
 - **怎么修**：
-  1. **实现基于递归快照的 `subscribePolling` 目录监听**：递归收集 mtime 与 size 快照做 diff，自动过滤 `.git`、`node_modules` 等 ignore 路径，对缺失目录优雅等待；在 Android 下默认使用 polling，同时保留 `OPENCODE_WATCHER=polling` 显式开关与 `OPENCODE_DISABLE_FILEWATCHER=1` 全局禁用；
-  2. **祖先边界收敛与 EACCES 抑制**：定义系统根黑名单（`/`、`/storage`、`/data`、`/etc` 等），`discovery.ts` 与 `watch.ts` 停止向不可读系统根爬取；`watcher.ts` 拦截黑名单目录，非预期 EACCES 仅通过 warning 记录一次，彻底消除冷启动刷屏；
+  1. **实现基于递归快照的 `subscribePolling` 目录监听**：递归收集 mtime/ctime/size 快照做 diff，自动过滤 `.git`、`node_modules` 等 ignore 路径，对缺失目录优雅等待；在 Android 下默认使用 polling，同时保留 `OPENCODE_WATCHER=polling` 显式开关与 `OPENCODE_DISABLE_FILEWATCHER=1` 全局禁用；
+  2. **祖先边界收敛与 EACCES 抑制**：定义系统根黑名单（`/`、`/storage`、`/storage/emulated`、`/storage/emulated/0`、`/data`、`/etc` 等，外加 `$HOME` 的祖先），`discovery.ts` 与 `watch.ts` 不再向其爬取/订阅；`watcher.ts` 拦截黑名单目录，EACCES/EPERM 降级为 debug 且只记一次；
   3. **工作区事件透传**：`LocationWatcher` 订阅 `location.directory` 目录级变更，将新增/修改/删除发布为 `FileSystem.Event.Changed`，通过 SSE `/api/event` 驱动 WebUI 实时刷新；
-  4. **新增冒烟**：`scripts/smoke-watcher.sh`（真机服务 + SSE 事件捕获）与 `make smoke-watcher`。
-- **教训**：**Android 移动端文件系统不能假设 POSIX/inotify 语义完整**。FUSE 挂载点上的跨进程文件监控必须优先保证 Polling 递归快照兜底，且必须严格限制祖先遍历边界。
+  4. **新增冒烟**：`scripts/smoke-watcher.sh`（真机服务 + SSE 事件捕获 + 配置热重载）与 `make smoke-watcher`。
+- **termux6 的二次踩坑（值得单独记）**：第一版补丁里两处 API 用错，静态检查和「工作区能出事件」都发现不了：
+  1. `FSUtil.globMatch` 只是 **Service 实例字段**，命名空间上没有这个静态函数，调用直接抛 `TypeError`。config 目录带 ignore 列表，扫描到第一个文件就抛，轮询每轮都中断 → 配置热重载静默失效；工作区 `ignore=[]` 才碰巧正常。
+  2. `Glob.match` 的签名是 `(pattern, filepath)`，实参写反了不会报错，只会静默不匹配。
+  修法：改用 `Glob.match(pattern, rel)`；起始快照与每轮扫描都包 `try/catch`，任何扫描异常都不能让监听静默死掉；补丁抽成 `spike/opencode-android/patch-watcher.py` 并配 `test-patch-watcher.py`（片段断言 + 真实目录行为单测），接进 `build.sh` 做门禁。
+- **termux7 的真机结论**：`/storage/emulated/0/OpenCode` 下增/改/删/子目录/空目录/重命名全部能收到 `filesystem.changed`，配置目录新增 agent 可热重载，冷启动 `backend not supported` 与 `EACCES` 均为 0。
+- **教训**：**Android 移动端文件系统不能假设 POSIX/inotify 语义完整**。FUSE 挂载点上的跨进程文件监控必须优先保证 Polling 递归快照兜底，且必须严格限制祖先遍历边界。更要紧的是：**「能出事件」不能证明「所有监听都活着」**——带 ignore 的订阅路径要单独验证。
 
 ---
 

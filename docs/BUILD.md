@@ -77,7 +77,7 @@ export NDK_ROOT=$PWD/android-ndk-r27c
 export PATH="$PWD/zig-x86_64-linux-0.17.0:$PWD/bun-linux-x64:$PATH"
 
 make source-deb VERSION=2.3.0 REV=5
-# → dist/opencode_2.3.0+termux5_aarch64.deb (+ .sha256)
+# → dist/opencode_2.3.0+termux7_aarch64.deb (+ .sha256)
 ```
 
 装到设备上：
@@ -221,7 +221,14 @@ wrapper 默认用 `${TMPDIR:-$P/tmp}/opty`；`make smoke-pty` 会真正启动/�
 
 ### 7. Android 文件监听（watcher）与环境变量控制
 
-Android 上没有 `@parcel/watcher` 原生绑定，且外部存储 `/storage/emulated/0`（FUSE）对跨 UID 编辑的 inotify 支持不稳定。构建阶段通过 `spike/opencode-android/build.sh` 注入了基于递归快照的 `subscribePolling` 目录监听器。
+Android 上没有 `@parcel/watcher` 原生绑定，且外部存储 `/storage/emulated/0`（FUSE）对跨 UID 编辑的 inotify 支持不稳定。构建阶段由 `spike/opencode-android/patch-watcher.py` 注入基于递归快照的 `subscribePolling` 目录监听器，改动四份上游源码：
+
+| 文件 | 改动 |
+|---|---|
+| `packages/core/src/filesystem/watcher.ts` | 新增轮询后端；`entries` 事件区分 create/delete；EACCES 只记一次 |
+| `packages/core/src/filesystem/location-watcher.ts` | 工作区目录级监听 → `FileSystem.Event.Changed` |
+| `packages/core/src/config/discovery.ts` | Android 用 `$PREFIX/etc/opencode`；祖先上溯收敛到项目根 |
+| `packages/core/src/config/watch.ts` | 不再为系统根/共享存储根建立父级订阅 |
 
 控制环境变量：
 - `OPENCODE_WATCHER`：默认在 Android 平台为 `polling`；可手动指定 `node` 尝试使用 Node 原生 `fs.watch`。
@@ -230,7 +237,15 @@ Android 上没有 `@parcel/watcher` 原生绑定，且外部存储 `/storage/emu
 
 校验命令：
 ```sh
-make smoke-watcher                    # 验证服务启动无 EACCES 噪音且可捕获文件变更事件
+python3 spike/opencode-android/test-patch-watcher.py <opencode-src>   # 补丁片段 + 扫描器行为单测（不需要设备）
+make smoke-watcher                                                   # 真机：噪音 + 工作区事件 + 配置热重载
+```
+
+真机验证时可对**未安装**的解包树跑，避免替换正在使用的服务：
+```sh
+P=build/verify-termux7/root/data/data/com.termux/files/usr
+OPENCODE_BIN="$PWD/$P/bin/opencode" PREFIX="$PWD/$P" \
+WORKSPACE=/storage/emulated/0/OpenCode/watch-selftest bash scripts/smoke-watcher.sh
 ```
 
 ---
@@ -248,6 +263,7 @@ make smoke-watcher                    # 验证服务启动无 EACCES 噪音且�
 make smoke-static                 # 静态体检
 make smoke-service                # 2.3.0 后台服务启动（设备）
 make smoke-pty                    # opencode-pty 持久 PTY（设备）
+make smoke-watcher                # 文件监听 / 配置热重载（设备）
 bash scripts/e2e-scenarios.sh     # 沙箱里跑真实场景
 ```
 

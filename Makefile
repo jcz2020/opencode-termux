@@ -18,7 +18,7 @@ help:
 	@echo "make smoke-service          # 只测 2.3.0 后台服务启动（隔离 XDG）"
 	@echo "make smoke-pty              # 只测 opencode-pty 持久 PTY daemon"
 	@echo "make smoke-static           # 解包 dist/*.deb 做静态体检（不需要设备）"
-	@echo "make smoke-release TAG=v2.3.0+termux5   # 从 release 拉 deb 装到设备再冒烟"
+	@echo "make smoke-release TAG=v2.3.0+termux7   # 从 release 拉 deb 装到设备再冒烟"
 	@echo "make verify-abi             # 只跑 FFI 符号/依赖校验"
 	@echo "make check-16kb             # 校验最新 dist/*.deb 的 16 KB 页对齐"
 	@echo "make check-tool-updates     # 对比 termux-tools.lock 与 Termux 仓库"

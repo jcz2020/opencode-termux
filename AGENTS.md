@@ -3,7 +3,7 @@
 **Generated:** 2026-11-13 · **Commit:** 1400fb7 · **Branch:** main
 
 ## OVERVIEW
-在 Termux/aarch64 上构建并发布 opencode。源码线（主线）自编 opencode + libopentui + bun-pty，tag `v<ver>+termux<N>`；镜像线（备选）重打包上游 bionic 二进制 + libnoheap，tag `v<ver>+mirror<N>`。当前发布 `v2.3.0+termux5`，runtime bundle 内置 git/rg/gh/fd/jq/busybox。
+在 Termux/aarch64 上构建并发布 opencode。源码线（主线）自编 opencode + libopentui + bun-pty，tag `v<ver>+termux<N>`；镜像线（备选）重打包上游 bionic 二进制 + libnoheap，tag `v<ver>+mirror<N>`。当前发布 `v2.3.0+termux7`，runtime bundle 内置 git/rg/gh/fd/jq/busybox。
 
 ## 其他项目：只读审查 + 提 issue，不直接改（强制）
 
@@ -98,7 +98,7 @@ make smoke-watcher                                       # 只测文件监听与
 make smoke-static && make check-16kb                      # 任意
 make check-tool-updates                                   # lock 里的工具是否有新版
 make publish-tool-cache                                  # 缓存当前 lock 的 deb
-make smoke-release TAG=v2.3.0+termux5                     # release 装机冒烟
+make smoke-release TAG=v2.3.0+termux7                     # release 装机冒烟
 bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓库跑
 ```
 - `make source-deb` 需要 NDK r27c、**zig 0.17.0**（脚本按 opentui `.zig-version` 严格比对）、bun、cargo + `aarch64-linux-android`、jq；`API=28` 可换 API level（默认 30）。
@@ -144,11 +144,15 @@ bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓�
    Android 无 prebuilt 导致目录级监听降级失败，日志刷 `watcher backend not supported`；
    同时 `discovery.ts` 向上爬到 `/` 与 `/storage`，引发大量 `EACCES` 报错。
    且 FUSE 挂载点跨应用 UID 写入时 inotify 不稳定。
-   修复：实现基于递归快照的 `subscribePolling` 目录监听（Android 默认使用，支持
-   `OPENCODE_WATCHER=polling` 显式设置与 `OPENCODE_DISABLE_FILEWATCHER=1` 完全禁用）；
-   收敛祖先目录向上扫描边界，排除系统根目录并抑制 EACCES 重复刷屏；
-   `LocationWatcher` 接入工作区目录监听，把外部文件变更推入 SSE `/api/event`
-   驱动 WebUI 实时刷新。`make smoke-watcher` 做全链路验证。
+   修复由 `spike/opencode-android/patch-watcher.py` 注入（四份上游源码：watcher /
+   location-watcher / discovery / config watch），实现基于递归快照的 `subscribePolling`
+   目录监听（Android 默认使用，支持 `OPENCODE_WATCHER=polling` 显式设置与
+   `OPENCODE_DISABLE_FILEWATCHER=1` 完全禁用）；祖先边界收敛到项目根，排除系统根与
+   共享存储根并抑制 EACCES 重复刷屏；`LocationWatcher` 接入工作区目录监听，把外部
+   文件变更推入 SSE `/api/event` 驱动 WebUI 实时刷新。
+   **改这段补丁前先跑 `spike/opencode-android/test-patch-watcher.py`**：
+   `FSUtil.globMatch` 不是静态函数、`Glob.match` 参数是 `(pattern, path)`，
+   termux6 就是栽在这两处（带 ignore 的监听静默失效）。`make smoke-watcher` 做全链路验证。
 
 另外：CI 用官方 `bun-linux-aarch64-android`（`BUN_RELEASE=bun-v1.4.4`），
 不需要自己交叉编 bun。bun 1.4 的 isolated 安装会把包放到
