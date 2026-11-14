@@ -81,6 +81,7 @@ fi
 
 # 拷贝二进制与库
 cp "$USR_SRC/bin/opencode.real" "$STAGE/usr/bin/opencode.real"
+[ -f "$USR_SRC/bin/opencode-pty" ] && cp "$USR_SRC/bin/opencode-pty" "$STAGE/usr/bin/opencode-pty"
 cp -a "$USR_SRC/lib/opencode/"* "$STAGE/usr/lib/opencode/"
 
 # opencode agent 会通过 PATH 调 git / rg；runtime bundle 直接提供它们，
@@ -100,7 +101,7 @@ for so in "$STAGE"/usr/lib/opencode/*.so; do
 done
 for f in "$STAGE/usr/bin/git" "$STAGE/usr/bin/rg" \
          "$STAGE/usr/bin/gh" "$STAGE/usr/bin/fd" "$STAGE/usr/bin/jq" \
-         "$STAGE/usr/bin/busybox" \
+         "$STAGE/usr/bin/busybox" "$STAGE/usr/bin/opencode-pty" \
          "$STAGE/usr/libexec/git-core/git-remote-http"; do
   [ -e "$f" ] && ELF_CHECK+=("$f")
 done
@@ -152,6 +153,14 @@ export PREFIX="$P"
 export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
 [ -f "$P/lib/opencode/libopentui.so" ] && export OPENTUI_NATIVE_LIB="$P/lib/opencode/libopentui.so"
 [ -f "$P/lib/opencode/librust_pty.so" ] && export BUN_PTY_LIB="$P/lib/opencode/librust_pty.so"
+
+# 2.3.0 持久 PTY daemon：二进制 + 可写 socket 目录（Android 的 /tmp 不可写）。
+if [ -x "$P/bin/opencode-pty" ]; then
+  export OPENCODE_PTY_BIN="$P/bin/opencode-pty"
+  _PTY_SOCK="${TMPDIR:-$P/tmp}/opty"
+  mkdir -p "$_PTY_SOCK" 2>/dev/null || true
+  [ -d "$_PTY_SOCK" ] && export OPENCODE_PTY_SOCKET_DIR="$_PTY_SOCK"
+fi
 
 # 双重保障启动：若直接 exec 遇到权限限制，尝试通过 system linker 启动
 # 2.3.0 起 TUI 会用 process.execPath 重新拉起 `serve --service`。

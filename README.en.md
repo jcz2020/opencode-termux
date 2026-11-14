@@ -188,19 +188,22 @@ The source build installs into `$PREFIX`:
 
 | Path | Role |
 |---|---|
-| `bin/opencode` | wrapper: sets three env vars, then execs the real binary |
+| `bin/opencode` | wrapper: sets the runtime environment, then execs the real binary |
 | `bin/opencode.real` | the actual opencode binary (~200 MiB) |
+| `bin/opencode-pty` | the 2.3.0 persistent PTY daemon (static binary) |
 | `lib/opencode/libnoheap.so` | disables bionic heap tagging (the key fix) |
 | `lib/opencode/libopentui.so` | our bionic build of the TUI native library |
 | `lib/opencode/librust_pty.so` | our bionic build of the PTY library |
 | `lib/opencode/opentui.h` | native header, for plugins that write their own FFI |
 
-The wrapper does three things:
+The wrapper does:
 
 ```sh
 LD_PRELOAD=.../libnoheap.so          # disable heap tagging
 OPENTUI_NATIVE_LIB=.../libopentui.so  # tell opentui where its native lib is
 BUN_PTY_LIB=.../librust_pty.so        # tell bun-pty where its lib is
+OPENCODE_PTY_BIN=.../bin/opencode-pty # 2.3.0 persistent PTY daemon
+OPENCODE_PTY_SOCKET_DIR=.../tmp/opty  # Android /tmp is not writable
 ```
 
 ---

@@ -47,6 +47,7 @@ src/noheap.c        关 bionic 堆 tagging 的 LD_PRELOAD shim
 scripts/            取源码/打包/安装/冒烟/推送（细节见 scripts/AGENTS.md）
 scripts/termux-tools.lock  git/rg/gh/fd/jq/busybox 与依赖的固定版本 + sha256
 scripts/check-tool-updates.sh  对比 lock 与 Termux Packages 索引
+scripts/fetch-opencode-pty.sh  按 opencode-pty.lock 取持久 PTY 静态二进制
 scripts/publish-tool-cache.sh 把 lock 对应的 deb 上传到 toolchain-cache
 spike/*/build.sh    源码线真正的编译逻辑，被 build-source-deb.sh 调用
 .github/workflows/  build-deb-source · build-deb · watch-upstream(6h) · watch-tools(每日) · publish-tool-cache(lock 变更) · smoke-device · spike-*
@@ -62,6 +63,7 @@ cache/ build/ dist/ gitignore；make clean 连 dist/ 一起删
 |---|---|---|
 | `bin/opencode` | wrapper：设 `LD_PRELOAD`、`OPENTUI_NATIVE_LIB`、`BUN_PTY_LIB` | wrapper：只设 `LD_PRELOAD` |
 | `bin/opencode.real` | 自己编 + strip（约 200 MiB） | 上游二进制 |
+| `bin/opencode-pty` | 2.3.0 持久 PTY 静态二进制 | — |
 | `lib/opencode/libnoheap.so` | ✓ | ✓ |
 | `lib/opencode/libopentui.so` + `opentui.h` | ✓（自编） | — |
 | `lib/opencode/librust_pty.so` | ✓（自编） | — |
@@ -90,6 +92,7 @@ make fetch VERSION=2.3.0 && make deb VERSION=2.3.0        # 镜像线
 NDK_ROOT=... PATH=... make source-deb VERSION=2.3.0 REV=3 # 源码线，仅 x86_64/CI
 make install && make smoke                                # 设备：TUI + 后台服务
 make smoke-service                                       # 只测后台服务（隔离 XDG）
+make smoke-pty                                           # 只测 opencode-pty 持久 PTY
 make smoke-static && make check-16kb                      # 任意
 make check-tool-updates                                   # lock 里的工具是否有新版
 make publish-tool-cache                                  # 缓存当前 lock 的 deb
@@ -99,7 +102,7 @@ bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓�
 - `make source-deb` 需要 NDK r27c、**zig 0.17.0**（脚本按 opentui `.zig-version` 严格比对）、bun、cargo + `aarch64-linux-android`、jq；`API=28` 可换 API level（默认 30）。
 - `make verify-abi` 依赖 dist/build 解包产物；日常直接调 `scripts/verify-abi.sh`。
 
-## 源码线的六个硬坑
+## 源码线的七个硬坑
 
 1. **原生库 / JS / 包版本必须对齐**。`@opentui/*` 与 `libopentui.so` 不一致时，
    静态检查看不出来，运行时才报 `ot_session_get_renderer_state failed: InvalidArgument`。
@@ -129,6 +132,11 @@ bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓�
    子进程执行 `linker64 serve --service`，报 `expected absolute path: "serve"`。
    wrapper 必须直接 `exec "$P/bin/opencode.real"`。`smoke-static.sh` 会拒绝含
    linker64 的 wrapper，`make smoke-service` 用隔离 XDG 验证服务拉起。
+7. **2.3.0 的持久 PTY 需要 `opencode-pty` + 可写 socket 目录**。缺失时日志刷
+   `process daemon unavailable` / `Executable not found in $PATH: "opencode-pty"`。
+   `fetch-opencode-pty.sh` 从 npm 取固定版本的静态 musl 二进制装到 `bin/opencode-pty`；
+   wrapper 注入 `OPENCODE_PTY_BIN` 和 `OPENCODE_PTY_SOCKET_DIR`（Android `/tmp` 不可写，
+   路径还要短于 `SUN_LEN`）。`make smoke-pty` 验证 daemon 启停。
 
 另外：CI 用官方 `bun-linux-aarch64-android`（`BUN_RELEASE=bun-v1.4.4`），
 不需要自己交叉编 bun。bun 1.4 的 isolated 安装会把包放到

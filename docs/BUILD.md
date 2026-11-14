@@ -11,6 +11,7 @@
 | `librust_pty.so` | cargo 配 NDK clang 交叉编译 bun-pty | 500 KB |
 | `libnoheap.so` | 本仓库的 `src/noheap.c` | 6 KB |
 | `opencode.real` | 官方 Android Bun 编译上游源码，然后 strip | 200 MiB |
+| `opencode-pty` | 上游 npm 的 linux-arm64-musl 静态二进制（协议 8） | 3 MB |
 
 运行时的独立 bundle 还会额外内置（deb 本身不带）：
 
@@ -23,6 +24,9 @@
 | `jq` | 1.8.2（Termux） | JSON 处理 |
 | `busybox` | 1.38.0（Termux） | 常用 shell 工具集 |
 | 依赖库 | libcurl / openssl / pcre2 / oniguruma / zlib / expat / iconv 等 | 固定 sha256，全部 16 KB 对齐 |
+
+`opencode-pty` 不属于 Termux 工具集，由 `scripts/fetch-opencode-pty.sh` 从 npm
+按 `opencode-pty.lock` 取固定版本，装到 deb/ bundle 的 `bin/opencode-pty`。
 
 这些工具由 `scripts/bundle-termux-tools.sh` 收进 `runtime-*.tar.zst` 的
 `usr/bin`、`usr/lib`、`usr/libexec/git-core`，并附带 git templates 与 CA 证书。
@@ -109,11 +113,13 @@ gh workflow run build-deb-source -f version=2.3.0 -f rev=3 -f publish=true
 | `spike/bun-pty-android/build.sh` | 只编 `librust_pty.so` |
 | `spike/opencode-android/build.sh` | 只编 `opencode.real`（含 `build.ts` 的 android 补丁） |
 | `scripts/build-runtime-bundle.sh` | 组装可独立分发的 `runtime-*.tar.zst` + manifest |
-| `scripts/bundle-termux-tools.sh` | 把固定版本 git/rg 与依赖收进 runtime bundle |
+| `scripts/fetch-opencode-pty.sh` | 按 `opencode-pty.lock` 取 2.3.0 持久 PTY 静态二进制 |
+| `scripts/bundle-termux-tools.sh` | 把固定版本 git/rg/gh/fd/jq/busybox 与依赖收进 runtime bundle |
 | `scripts/check-tool-updates.sh` | 对比 `termux-tools.lock` 与 Termux 仓库，只报告不自动更新 |
 | `scripts/verify-abi.sh` | 比对 `@opentui/core` 要的 FFI 符号和 `.so` 导出的符号 |
 | `scripts/smoke-static.sh` | 解包 deb 做静态体检（不需要设备） |
 | `scripts/smoke-service.sh` | 设备上：隔离 XDG 启一次 2.3.0 后台服务 |
+| `scripts/smoke-pty.sh` | 设备上：启动/停止 opencode-pty 持久 PTY daemon |
 | `scripts/smoke-release.sh` | 设备上：下载 release、装上、tmux 冒烟，**真发一条 prompt** |
 | `scripts/e2e-scenarios.sh` | 沙箱里跑 6 个真实交互场景（读文件/改文件/建文件/跑命令……）+ 2 项落盘核对 |
 
@@ -196,6 +202,23 @@ exec "$P/bin/opencode.real" "$@"
 `smoke-static.sh` 会拒绝含 `linker64` 的 wrapper；`make smoke-service` 会用隔离
 的 `XDG_STATE_HOME` 真正启动一次后台服务。
 
+### 6. 2.3.0 的持久 PTY 需要 `opencode-pty` 和可写 socket 目录
+
+2.3.0 的 agent shell 依赖 `opencode-pty` daemon。缺失时日志会刷：
+
+```text
+process daemon unavailable; spawning shell command instead
+Executable not found in $PATH: "opencode-pty"
+```
+
+修复分两半：
+
+1. 把上游 `@opencode/pty-linux-arm64-musl` 的静态二进制装到 `bin/opencode-pty`；
+2. wrapper 注入 `OPENCODE_PTY_BIN` 和 `OPENCODE_PTY_SOCKET_DIR`。
+
+socket 目录不能是 Android 的 `/tmp`（不可写），也不能太长（`SUN_LEN` 限制）。
+wrapper 默认用 `${TMPDIR:-$P/tmp}/opty`；`make smoke-pty` 会真正启动/停止 daemon 验证。
+
 ---
 
 ## 想改点东西
@@ -210,6 +233,7 @@ exec "$P/bin/opencode.real" "$@"
 ```sh
 make smoke-static                 # 静态体检
 make smoke-service                # 2.3.0 后台服务启动（设备）
+make smoke-pty                    # opencode-pty 持久 PTY（设备）
 bash scripts/e2e-scenarios.sh     # 沙箱里跑真实场景
 ```
 

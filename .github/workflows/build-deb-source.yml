@@ -133,6 +133,7 @@ jobs:
           - \`libnoheap.so\`：关 bionic 堆 tagging（Android 11+ TUI 必需）
           - 运行时 bundle 内置 \`git\` 2.56.1（含 HTTPS helper）、\`ripgrep\` 15.2.0、\`gh\` 2.104.0、\`fd\` 10.5.2、\`jq\` 1.8.2、\`busybox\` 1.38.0
           - wrapper 直接 exec \`opencode.real\`，修复 2.3.0 后台服务 \`serve --service\` 启动失败
+          - 内置 \`opencode-pty\` 持久 PTY daemon（静态二进制），并注入可写 socket 目录
           - 所有 ELF 的 PT_LOAD 均按 16 KB 页对齐，兼容 Android 15/16
           - 嵌入 Web UI 资产，支持 \`opencode serve\` 离线 Web 界面与 WebView
 

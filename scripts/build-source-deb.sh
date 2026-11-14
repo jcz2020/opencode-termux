@@ -74,6 +74,24 @@ import json;d=json.load(open('oc/packages/core/package.json'))
 print(d.get('dependencies',{}).get('bun-pty','0.4.11'))")
 echo "==> 配套版本：open tui=$OTUI_VER  bun-pty=$PTY_VER"
 
+# opencode 2.3.0 起 core 依赖 @opencode/pty；它必须和 opencode-pty.lock 的版本一致，
+# 否则 daemon 协议会不匹配。
+OCPTY_LOCK_VER="$(grep -v '^[[:space:]]*#' "$ROOT/scripts/opencode-pty.lock" | grep -v '^[[:space:]]*$' | head -1 | cut -d'|' -f2)"
+OCPTY_REQ_VER="$(python3 -c "
+import json
+try:
+    d=json.load(open('oc/packages/core/package.json'))
+    print((d.get('dependencies') or {}).get('@opencode/pty',''))
+except Exception:
+    print('')
+" 2>/dev/null || true)"
+if [ -n "$OCPTY_REQ_VER" ] && [ "$OCPTY_REQ_VER" != "$OCPTY_LOCK_VER" ]; then
+  echo "ERROR: opencode 需要 @opencode/pty=$OCPTY_REQ_VER，但 opencode-pty.lock 是 $OCPTY_LOCK_VER" >&2
+  echo "       请更新 scripts/opencode-pty.lock（npm tarball + sha256）后重试。" >&2
+  exit 1
+fi
+[ -n "$OCPTY_REQ_VER" ] && echo "    opencode-pty=$OCPTY_REQ_VER"
+
 if [ ! -d otui/packages/native ]; then
   echo "==> 取 opentui 源码 v$OTUI_VER"
   curl -sSL -o otui.tar.gz "https://codeload.github.com/anomalyco/opentui/tar.gz/refs/tags/v$OTUI_VER" \
@@ -142,9 +160,12 @@ cp "$BIN" "$WORK/opencode.stripped"
 "$STRIP" --strip-all "$WORK/opencode.stripped" || echo "   WARN: strip 失败，沿用未 strip 版本"
 ls -la "$BIN" "$WORK/opencode.stripped" | awk '{print "   ", $5, $9}'
 
+echo "==> opencode-pty（持久 PTY 服务）"
+bash "$ROOT/scripts/fetch-opencode-pty.sh" "$WORK/opencode-pty"
+
 echo "==> 16 KB 页对齐检查（Android 15/16）"
 python3 "$ROOT/scripts/check-16kb-pages.py" \
-  "$LIBOTUI" "$LIBPTY" "$WORK/libnoheap.so" "$WORK/opencode.stripped"
+  "$LIBOTUI" "$LIBPTY" "$WORK/libnoheap.so" "$WORK/opencode.stripped" "$WORK/opencode-pty"
 
 # ── 3. 组装 rootfs ──────────────────────────────────────────────
 echo "==> 组装 deb rootfs"
@@ -155,6 +176,7 @@ mkdir -p "$BUILD/$PREFIX_DIR/bin" \
          "$BUILD/DEBIAN"
 
 install -m 755 "$WORK/opencode.stripped" "$BUILD/$PREFIX_DIR/bin/opencode.real"
+install -m 755 "$WORK/opencode-pty"      "$BUILD/$PREFIX_DIR/bin/opencode-pty"
 install -m 755 "$WORK/libnoheap.so"      "$BUILD/$PREFIX_DIR/lib/opencode/libnoheap.so"
 install -m 755 "$LIBPTY"                 "$BUILD/$PREFIX_DIR/lib/opencode/librust_pty.so"
 install -m 644 "$LIBOTUI"                "$BUILD/$PREFIX_DIR/lib/opencode/libopentui.so"
@@ -214,6 +236,15 @@ export PREFIX="$P"
 export LD_PRELOAD="$P/lib/opencode/libnoheap.so${LD_PRELOAD:+:$LD_PRELOAD}"
 export OPENTUI_NATIVE_LIB="$P/lib/opencode/libopentui.so"
 export BUN_PTY_LIB="$P/lib/opencode/librust_pty.so"
+
+# 2.3.0 的持久 PTY daemon。除了把二进制放进 PATH，还必须给它一个
+# 可写的 socket 目录，否则默认 /tmp 在 Android 上不可写。
+if [ -x "$P/bin/opencode-pty" ]; then
+  export OPENCODE_PTY_BIN="$P/bin/opencode-pty"
+  _PTY_SOCK="${TMPDIR:-$P/tmp}/opty"
+  mkdir -p "$_PTY_SOCK" 2>/dev/null || true
+  [ -d "$_PTY_SOCK" ] && export OPENCODE_PTY_SOCKET_DIR="$_PTY_SOCK"
+fi
 
 # 2.3.0 起 TUI 会用 process.execPath 重新拉起 `serve --service`。
 # 不能经过 /system/bin/linker64：Bun 会把 process.execPath 报成 linker64，

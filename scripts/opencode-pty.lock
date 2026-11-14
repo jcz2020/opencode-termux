@@ -1,0 +1,5 @@
+# opencode-pty static binary for Android/Termux.
+# Upstream publishes it as a linux-arm64-musl npm package. It is a statically
+# linked aarch64 Linux executable and runs on Android/Termux.
+# Format: name|version|package|tarball URL|sha256
+opencode-pty|0.5.2|@opencode/pty-linux-arm64-musl|https://registry.npmjs.org/@opencode/pty-linux-arm64-musl/-/pty-linux-arm64-musl-0.5.2.tgz|8cca7ee8528ef76d83d68071ec20cda7e1e72849dde3be2a0adce9b5bfe26627

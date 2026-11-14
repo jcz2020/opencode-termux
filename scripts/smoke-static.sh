@@ -33,7 +33,7 @@ echo "==> 文件齐全"
 REQUIRED="bin/opencode bin/opencode.real lib/opencode/libnoheap.so lib/opencode/opencode-updater.sh"
 if [ -f "$P/lib/opencode/libopentui.so" ]; then
   SOURCE_LINE=1
-  REQUIRED="$REQUIRED lib/opencode/librust_pty.so lib/opencode/libopentui.so"
+  REQUIRED="$REQUIRED lib/opencode/librust_pty.so lib/opencode/libopentui.so bin/opencode-pty"
 else
   SOURCE_LINE=0
   echo "  --   这是重打包线布局（无自编原生库），跳过原生库检查"
@@ -75,8 +75,8 @@ case "$last_exec" in
 esac
 
 echo "==> 架构与依赖"
-for f in bin/opencode.real lib/opencode/libnoheap.so lib/opencode/librust_pty.so \
-         lib/opencode/libopentui.so; do
+for f in bin/opencode.real bin/opencode-pty lib/opencode/libnoheap.so \
+         lib/opencode/librust_pty.so lib/opencode/libopentui.so; do
   [ -f "$P/$f" ] || continue
   [ -f "$P/$f" ] || continue
   arch="$(file -b "$P/$f")"
@@ -91,6 +91,7 @@ done
 
 echo "==> 16 KB 页对齐（Android 15/16）"
 ELF_CHECK=("$P/bin/opencode.real")
+[ -f "$P/bin/opencode-pty" ] && ELF_CHECK+=("$P/bin/opencode-pty")
 for so in "$P"/lib/opencode/*.so; do
   [ -e "$so" ] && ELF_CHECK+=("$so")
 done

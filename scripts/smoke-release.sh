@@ -85,6 +85,9 @@ echo "OK: TUI 正常渲染${ver:+（版本 $ver）}"
 echo "==> 验 2.3.0 后台服务（隔离 XDG）"
 bash "$(cd "$(dirname "$0")" && pwd)/smoke-service.sh"
 
+echo "==> 验 opencode-pty 持久 PTY"
+bash "$(cd "$(dirname "$0")" && pwd)/smoke-pty.sh"
+
 # ── 5. shell 工具（bun-pty 那条链） ─────────────────────────────
 echo "==> 验 shell 工具（bun-pty）"
 if command -v python3 >/dev/null; then

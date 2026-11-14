@@ -184,19 +184,22 @@ A：能，见 [docs/BUILD.md](docs/BUILD.md)。
 
 | 路径 | 作用 |
 |---|---|
-| `bin/opencode` | 包装脚本：设好三个环境变量，再 exec 真正的二进制 |
+| `bin/opencode` | 包装脚本：设好运行时环境，再 exec 真正的二进制 |
 | `bin/opencode.real` | 真正的 opencode 二进制（约 200 MiB） |
+| `bin/opencode-pty` | 2.3.0 持久 PTY daemon（静态二进制） |
 | `lib/opencode/libnoheap.so` | 关掉 bionic 的堆 tagging —— TUI 崩溃的关键就在这 |
 | `lib/opencode/libopentui.so` | 我们自己编的 TUI 原生库（bionic） |
 | `lib/opencode/librust_pty.so` | 我们自己编的 PTY 库（跑命令、终端面板） |
 | `lib/opencode/opentui.h` | 原生库头文件，给要写 FFI 的插件用 |
 
-包装脚本干的活就三件：
+包装脚本干的活：
 
 ```sh
 LD_PRELOAD=.../libnoheap.so          # 关堆 tagging
 OPENTUI_NATIVE_LIB=.../libopentui.so  # 告诉 opentui 原生库在哪
 BUN_PTY_LIB=.../librust_pty.so        # 告诉 bun-pty 库在哪
+OPENCODE_PTY_BIN=.../bin/opencode-pty # 2.3.0 持久 PTY daemon
+OPENCODE_PTY_SOCKET_DIR=.../tmp/opty  # Android /tmp 不可写，用私有短路径
 ```
 
 ---
