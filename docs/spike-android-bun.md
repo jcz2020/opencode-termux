@@ -300,3 +300,27 @@ CI：`.github/workflows/build-deb-source.yml`（dispatch: version/rev/publish）
 
 `watch-upstream` 现在直接 dispatch **源码线**（publish=true），
 上游一发版就自动编译并发出 release，完全不碰第三方打包产物。
+
+## 13. 2.3.0 运行时演进：后台服务、持久 PTY、工具链
+
+2.3.0 不是简单的版本号变化，运行时接口变了：
+
+- TUI 和 HTTP 服务拆成“客户端 + 常驻后台服务”；
+- TUI 用 `process.execPath` 重新执行 `serve --service`，所以 wrapper 不能再经过
+  `/system/bin/linker64`，否则 execPath 变成 linker，服务直接起不来；
+- agent shell 改为依赖 `opencode-pty` 持久 PTY daemon；
+- Termux 的 `/tmp` 对普通用户不可写，`opencode-pty` 必须显式给一个可写的短
+  socket 目录（还要避开 `SUN_LEN`）。
+
+对应修复：
+
+| 问题 | 文件/机制 |
+|---|---|
+| 服务启动失败 | wrapper 直接 `exec opencode.real`；`smoke-service.sh` 隔离 XDG 验证 |
+| PTY 缺失 | `opencode-pty.lock` + `fetch-opencode-pty.sh`，装 `bin/opencode-pty` |
+| PTY socket 不可写 | wrapper 注入 `OPENCODE_PTY_BIN` + `OPENCODE_PTY_SOCKET_DIR=$TMPDIR/opty` |
+| 工具版本漂移 | `termux-tools.lock` + `watch-tools` + `toolchain-cache` 内容寻址缓存 |
+| git/rg 等工具 | runtime bundle 提供；App 侧从 `nativeLibraryDir` 符号链接 |
+
+这一轮的核心教训：
+**运行时接口变化时，`--version` 通过不代表能用；必须验证服务、PTY 和真实 shell 链路。**

@@ -125,7 +125,7 @@ gh workflow run build-deb-source -f version=2.3.0 -f rev=5 -f publish=true
 
 ---
 
-## 四个一定要知道的坑
+## 六个一定要知道的坑
 
 ### 1. 原生库和 JS 侧必须同版本
 

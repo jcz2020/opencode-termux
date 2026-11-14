@@ -267,6 +267,46 @@
 - **教训**：**`process.execPath` 是 2.3.0 的接口**。涉及 wrapper/启动器的改动，
   不能只验 `--version`，必须验“后台服务能不能被自己拉起来”。
 
+### 26. 2.3.0 的持久 PTY：缺二进制 + socket 目录不可写
+
+- **怎么发现的**：日志刷屏：
+  ```text
+  process daemon unavailable; spawning shell command instead
+  Executable not found in $PATH: "opencode-pty"
+  ```
+  说明 agent shell 退化成了普通管道。
+- **两个叠加原因**：
+  1. runtime 里没有 `opencode-pty`；
+  2. 即使补上，daemon 默认把 Unix socket 放到 `/tmp`，Android 上不可写；
+     路径过长还会触发 `SUN_LEN`。
+- **怎么修**：
+  1. 用 `scripts/opencode-pty.lock` 固定
+     `@opencode/pty-linux-arm64-musl` 0.5.2（静态 aarch64 musl，协议 8）；
+  2. `fetch-opencode-pty.sh` 取二进制，装到 `bin/opencode-pty` 并确保 755；
+  3. wrapper 注入 `OPENCODE_PTY_BIN`；
+  4. wrapper 注入短的 `OPENCODE_PTY_SOCKET_DIR=${TMPDIR:-$P/tmp}/opty`；
+  5. `build-source-deb.sh` 核对上游 `@opencode/pty` 版本与 lock 一致；
+  6. `make smoke-pty` 真正启动/停止 daemon。
+- **附带踩坑**：`termux4` 构建时 rootfs 统一 `chmod 644` 把 `opencode-pty`
+  的执行位刷掉了，`smoke-static` 现在会检查执行位；`termux5` 修复。
+- **教训**：**“二进制存在”不等于“PTY 能用”**。这个功能同时依赖
+  可执行位、正确版本、可写且足够短的 socket 路径。
+
+### 27. Termux 会删旧 deb，工具链必须锁版本 + 做缓存
+
+- **怎么发现的**：准备加 `gh` 时，之前候选的 `2.103.3` 已经从 Termux pool
+  消失（404），索引里只剩 `2.104.0`。锁了旧路径的构建会直接失败。
+- **后果**：只有当前构建失败，已发布产物不受影响；但历史 tag 无法重建。
+- **怎么修**：
+  1. `scripts/termux-tools.lock` 固定所有工具的版本、路径、sha256；
+  2. `watch-tools` 每天对比 Termux 索引，只维护一个 issue，不自动发版；
+  3. `publish-tool-cache` 把一次 lock 对应的全部 deb 打成
+     `termux-tools-<lock-sha>.tar.zst`，上传到独立的 `toolchain-cache` release；
+  4. `bundle-termux-tools.sh` 的下载顺序：本地 cache → toolchain-cache → Termux 源；
+  5. 缓存约 22 MB/快照，不进入 Git，不影响 runtime bundle/APK。
+- **教训**：**pin 之后还要有“发现更新”和“保住旧包”两条腿**。
+  只 pin 不巡检会错过更新；只巡检不缓存会在上游删包时无法重建。
+
 ---
 
 ## 六、可以推广的几条
@@ -287,3 +327,5 @@
    写完自己读一遍 —— 读着别扭就是要改（见第 21 条）。
 9. **别把「我这儿不行」写成「它就是不行」。** 环境的结论会过期，
    文档要写成「时通时不通 + 该怎么兜底」，而不是一句「不可用」。
+10. **`--version` 不是验收。** 运行时接口一变（2.3.0 的后台服务、持久 PTY），
+    版本号照样能打印，真正要测的是服务拉起、socket 路径、真实 shell 链路。

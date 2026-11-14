@@ -47,6 +47,7 @@ src/noheap.c        关 bionic 堆 tagging 的 LD_PRELOAD shim
 scripts/            取源码/打包/安装/冒烟/推送（细节见 scripts/AGENTS.md）
 scripts/termux-tools.lock  git/rg/gh/fd/jq/busybox 与依赖的固定版本 + sha256
 scripts/check-tool-updates.sh  对比 lock 与 Termux Packages 索引
+scripts/opencode-pty.lock      持久 PTY 静态二进制的固定版本 + sha256
 scripts/fetch-opencode-pty.sh  按 opencode-pty.lock 取持久 PTY 静态二进制
 scripts/publish-tool-cache.sh 把 lock 对应的 deb 上传到 toolchain-cache
 spike/*/build.sh    源码线真正的编译逻辑，被 build-source-deb.sh 调用
