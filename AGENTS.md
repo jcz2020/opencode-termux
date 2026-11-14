@@ -94,6 +94,7 @@ NDK_ROOT=... PATH=... make source-deb VERSION=2.3.0 REV=5 # 源码线，仅 x86_
 make install && make smoke                                # 设备：TUI + 后台服务
 make smoke-service                                       # 只测后台服务（隔离 XDG）
 make smoke-pty                                           # 只测 opencode-pty 持久 PTY
+make smoke-watcher                                       # 只测文件监听与事件通知
 make smoke-static && make check-16kb                      # 任意
 make check-tool-updates                                   # lock 里的工具是否有新版
 make publish-tool-cache                                  # 缓存当前 lock 的 deb
@@ -103,7 +104,7 @@ bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓�
 - `make source-deb` 需要 NDK r27c、**zig 0.17.0**（脚本按 opentui `.zig-version` 严格比对）、bun、cargo + `aarch64-linux-android`、jq；`API=28` 可换 API level（默认 30）。
 - `make verify-abi` 依赖 dist/build 解包产物；日常直接调 `scripts/verify-abi.sh`。
 
-## 源码线的七个硬坑
+## 源码线的八个硬坑
 
 1. **原生库 / JS / 包版本必须对齐**。`@opentui/*` 与 `libopentui.so` 不一致时，
    静态检查看不出来，运行时才报 `ot_session_get_renderer_state failed: InvalidArgument`。
@@ -139,6 +140,15 @@ bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓�
    `build-source-deb.sh` 会核对 `packages/core/package.json` 的 `@opencode/pty` 版本与 lock 一致；
    wrapper 注入 `OPENCODE_PTY_BIN` 和 `OPENCODE_PTY_SOCKET_DIR`（Android `/tmp` 不可写，
    路径还要短于 `SUN_LEN`）。`make smoke-pty` 验证 daemon 启停。
+8. **Android 文件监听（watcher）与 EACCES 噪音**。上游依赖 `@parcel/watcher`，
+   Android 无 prebuilt 导致目录级监听降级失败，日志刷 `watcher backend not supported`；
+   同时 `discovery.ts` 向上爬到 `/` 与 `/storage`，引发大量 `EACCES` 报错。
+   且 FUSE 挂载点跨应用 UID 写入时 inotify 不稳定。
+   修复：实现基于递归快照的 `subscribePolling` 目录监听（Android 默认使用，支持
+   `OPENCODE_WATCHER=polling` 显式设置与 `OPENCODE_DISABLE_FILEWATCHER=1` 完全禁用）；
+   收敛祖先目录向上扫描边界，排除系统根目录并抑制 EACCES 重复刷屏；
+   `LocationWatcher` 接入工作区目录监听，把外部文件变更推入 SSE `/api/event`
+   驱动 WebUI 实时刷新。`make smoke-watcher` 做全链路验证。
 
 另外：CI 用官方 `bun-linux-aarch64-android`（`BUN_RELEASE=bun-v1.4.4`），
 不需要自己交叉编 bun。bun 1.4 的 isolated 安装会把包放到

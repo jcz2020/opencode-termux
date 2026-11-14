@@ -1,7 +1,7 @@
 VERSION ?= 2.3.0
 REV     ?= 6   # 下一个待发布修订号（5 已发布，避免误覆盖）
 
-.PHONY: help fetch deb install smoke smoke-service smoke-pty smoke-static smoke-release source-deb verify-abi check-16kb check-tool-updates publish-tool-cache clean runtime-bundle
+.PHONY: help fetch deb install smoke smoke-service smoke-pty smoke-watcher smoke-static smoke-release source-deb verify-abi check-16kb check-tool-updates publish-tool-cache clean runtime-bundle
 
 help:
 	@echo "── 二进制重打包线（拿上游 bionic 二进制）──"
@@ -46,12 +46,16 @@ smoke:
 	bash scripts/smoke.sh
 	bash scripts/smoke-service.sh
 	bash scripts/smoke-pty.sh
+	bash scripts/smoke-watcher.sh
 
 smoke-service:
 	bash scripts/smoke-service.sh
 
 smoke-pty:
 	bash scripts/smoke-pty.sh
+
+smoke-watcher:
+	bash scripts/smoke-watcher.sh
 
 smoke-static:
 	bash scripts/smoke-static.sh $$(ls -1t dist/*.deb 2>/dev/null | head -1)

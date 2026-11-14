@@ -219,6 +219,20 @@ Executable not found in $PATH: "opencode-pty"
 socket 目录不能是 Android 的 `/tmp`（不可写），也不能太长（`SUN_LEN` 限制）。
 wrapper 默认用 `${TMPDIR:-$P/tmp}/opty`；`make smoke-pty` 会真正启动/停止 daemon 验证。
 
+### 7. Android 文件监听（watcher）与环境变量控制
+
+Android 上没有 `@parcel/watcher` 原生绑定，且外部存储 `/storage/emulated/0`（FUSE）对跨 UID 编辑的 inotify 支持不稳定。构建阶段通过 `spike/opencode-android/build.sh` 注入了基于递归快照的 `subscribePolling` 目录监听器。
+
+控制环境变量：
+- `OPENCODE_WATCHER`：默认在 Android 平台为 `polling`；可手动指定 `node` 尝试使用 Node 原生 `fs.watch`。
+- `OPENCODE_WATCHER_POLL_INTERVAL`：轮询扫描间隔，默认 `1000`（毫秒）。
+- `OPENCODE_DISABLE_FILEWATCHER=1` 或 `OPENCODE_FILEWATCHER_DISABLE=1`：彻底关闭所有文件监听。
+
+校验命令：
+```sh
+make smoke-watcher                    # 验证服务启动无 EACCES 噪音且可捕获文件变更事件
+```
+
 ---
 
 ## 想改点东西

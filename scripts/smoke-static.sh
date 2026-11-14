@@ -140,5 +140,19 @@ case "$pkgver" in
 esac
 [ "$arch" = aarch64 ] && ok "架构 aarch64" || bad "架构 $arch"
 
+if [ "$SOURCE_LINE" = 1 ]; then
+  rev="$(echo "$pkgver" | sed -nE 's/.*termux([0-9]+)$/\1/p')"
+  if [ -n "$rev" ] && [ "$rev" -ge 6 ]; then
+    echo "==> Android watcher 补丁"
+    if grep -q "OPENCODE_WATCHER" "$TMP/strings.txt"; then
+      ok "二进制含 OPENCODE_WATCHER 补丁"
+    else
+      bad "二进制缺少 OPENCODE_WATCHER 补丁"
+    fi
+  else
+    echo "  --   历史版本（+termux${rev:-0} < +termux6），跳过 OPENCODE_WATCHER 补丁检查"
+  fi
+fi
+
 [ "$fail" = 0 ] || { echo "=== 静态冒烟失败 ==="; exit 1; }
 echo "=== 静态冒烟通过 ==="

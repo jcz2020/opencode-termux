@@ -307,6 +307,25 @@
 - **教训**：**pin 之后还要有“发现更新”和“保住旧包”两条腿**。
   只 pin 不巡检会错过更新；只巡检不缓存会在上游删包时无法重建。
 
+### 28. Android 上的文件监听（watcher）：FUSE 陷阱、递归快照轮询与 EACCES 噪音收敛
+
+- **怎么发现的**：App 实例消费 `2.3.0+termux5` 后，工作区默认在 `/storage/emulated/0/OpenCode`：
+  1. 外部编辑器修改文件后 WebUI 不自动刷新；
+  2. 冷启动日志刷屏 `watcher backend not supported ... platform=android`（约 6 次）；
+  3. 伴随 `failed to watch directory: EACCES ... watch '/'、watch '/storage'`；
+  4. 触摸 / 修改工作区文件未观察到任何文件监听事件。
+- **根因分析**：
+  1. 上游 directory watcher 依赖 `@parcel/watcher`，构建期因缺少 Android 预编译 binding 降级为抛错，导致所有目录级监听（`.config/opencode`、`.opencode`、`skill/`、`skills/`）全部失效并退化关闭；
+  2. Android 外部存储 `/storage/emulated/0` 是 FUSE 挂载点，跨应用 UID 写入或原子重命名保存时，inotify 事件极易丢失；
+  3. `ConfigDiscovery.discover` 盲目使用 `fs.up` 向上查找祖先目录，一路爬到 `/`、`/storage`、`/etc`，并在 `ConfigWatch.plan` 中注册父级 entries 监听，触发无权限报错 `EACCES`；
+  4. `LocationWatcher` 原先仅监听 `.git/HEAD`，未对工作区目录建立递归监听，外部新建/改动无法推入 `FileSystem.Event.Changed`。
+- **怎么修**：
+  1. **实现基于递归快照的 `subscribePolling` 目录监听**：递归收集 mtime 与 size 快照做 diff，自动过滤 `.git`、`node_modules` 等 ignore 路径，对缺失目录优雅等待；在 Android 下默认使用 polling，同时保留 `OPENCODE_WATCHER=polling` 显式开关与 `OPENCODE_DISABLE_FILEWATCHER=1` 全局禁用；
+  2. **祖先边界收敛与 EACCES 抑制**：定义系统根黑名单（`/`、`/storage`、`/data`、`/etc` 等），`discovery.ts` 与 `watch.ts` 停止向不可读系统根爬取；`watcher.ts` 拦截黑名单目录，非预期 EACCES 仅通过 warning 记录一次，彻底消除冷启动刷屏；
+  3. **工作区事件透传**：`LocationWatcher` 订阅 `location.directory` 目录级变更，将新增/修改/删除发布为 `FileSystem.Event.Changed`，通过 SSE `/api/event` 驱动 WebUI 实时刷新；
+  4. **新增冒烟**：`scripts/smoke-watcher.sh`（真机服务 + SSE 事件捕获）与 `make smoke-watcher`。
+- **教训**：**Android 移动端文件系统不能假设 POSIX/inotify 语义完整**。FUSE 挂载点上的跨进程文件监控必须优先保证 Polling 递归快照兜底，且必须严格限制祖先遍历边界。
+
 ---
 
 ## 六、可以推广的几条

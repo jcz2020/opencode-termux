@@ -24,7 +24,7 @@
 - 镜像线：`fetch.sh` → `build-deb.sh` → `build-runtime-bundle.sh`。
 - 源码线：`build-source-deb.sh` 调 `spike/*/build.sh` 编四个件 → `verify-abi.sh` → deb → bundle。
 - 安装：`install.sh`（dpkg -i，先清旧 diversion）或 `install-termux.sh`（多镜像、断点续传、SemVer 选最高 `+termux`、拦截 `opencode update`）。
-- 验证：`smoke.sh`（tmux 真 tty）、`smoke-service.sh`（隔离 XDG 后台服务）、`smoke-pty.sh`（持久 PTY daemon）被 `make smoke` / `smoke-release.sh` 复用；`smoke-static.sh` 不需要设备；`e2e-scenarios.sh` 用沙箱。
+- 验证：`smoke.sh`（tmux 真 tty）、`smoke-service.sh`（隔离 XDG 后台服务）、`smoke-pty.sh`（持久 PTY daemon）、`smoke-watcher.sh`（文件监听与事件通知）被 `make smoke` / `smoke-release.sh` 复用；`smoke-static.sh` 不需要设备；`e2e-scenarios.sh` 用沙箱。
 
 ## CONTRACTS
 - `build-source-deb.sh VERSION REV` → `dist/opencode_<VERSION>+termux<REV>_aarch64.deb`；REV 只增不覆盖。
@@ -63,6 +63,8 @@
 ```sh
 make smoke-static
 make smoke-service
+make smoke-pty
+bash scripts/smoke-watcher.sh
 bash scripts/smoke.sh
 bash scripts/smoke-release.sh v2.3.0+termux5
 bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox
