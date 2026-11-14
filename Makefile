@@ -1,7 +1,7 @@
 VERSION ?= 2.3.0
 REV     ?= 4   # 下一个待发布修订号（3 已发布，避免误覆盖）
 
-.PHONY: help fetch deb install smoke smoke-service smoke-static smoke-release source-deb verify-abi check-16kb check-tool-updates clean runtime-bundle
+.PHONY: help fetch deb install smoke smoke-service smoke-static smoke-release source-deb verify-abi check-16kb check-tool-updates publish-tool-cache clean runtime-bundle
 
 help:
 	@echo "── 二进制重打包线（拿上游 bionic 二进制）──"
@@ -21,6 +21,7 @@ help:
 	@echo "make verify-abi             # 只跑 FFI 符号/依赖校验"
 	@echo "make check-16kb             # 校验最新 dist/*.deb 的 16 KB 页对齐"
 	@echo "make check-tool-updates     # 对比 termux-tools.lock 与 Termux 仓库"
+	@echo "make publish-tool-cache     # 把当前 lock 的 deb 上传到 toolchain-cache"
 	@echo ""
 	@echo "make clean                  # 清 build/ dist/"
 
@@ -74,6 +75,9 @@ check-16kb:
 
 check-tool-updates:
 	bash scripts/check-tool-updates.sh
+
+publish-tool-cache:
+	bash scripts/publish-tool-cache.sh
 
 clean:
 	rm -rf build dist

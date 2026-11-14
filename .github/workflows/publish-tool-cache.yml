@@ -1,0 +1,28 @@
+name: publish-tool-cache
+
+# lock 变化时，把对应的一整套 Termux deb 上传成内容寻址缓存。
+# 这只是构建 fallback，不影响 runtime bundle/APK。
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/termux-tools.lock
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-tool-cache
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish tool cache
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/publish-tool-cache.sh

@@ -123,7 +123,8 @@ ${table}${notes}
 1. 修改 \`scripts/termux-tools.lock\` 的版本/路径/sha256；
 2. 跑 \`make smoke-static\` 和 \`make check-16kb\`（或完整 \`make source-deb\`）；
 3. 验证 \`make smoke\` / \`make smoke-service\`；
-4. 发新的 \`+termuxN\` 修订，不要覆盖已有 release。
+4. 发新的 \`+termuxN\` 修订，不要覆盖已有 release；
+5. 跑 \`make publish-tool-cache\` 缓存本次 lock 的 deb。
 EOF
 
 exit 2

@@ -47,8 +47,9 @@ src/noheap.c        关 bionic 堆 tagging 的 LD_PRELOAD shim
 scripts/            取源码/打包/安装/冒烟/推送（细节见 scripts/AGENTS.md）
 scripts/termux-tools.lock  git/rg/gh/fd/jq/busybox 与依赖的固定版本 + sha256
 scripts/check-tool-updates.sh  对比 lock 与 Termux Packages 索引
+scripts/publish-tool-cache.sh 把 lock 对应的 deb 上传到 toolchain-cache
 spike/*/build.sh    源码线真正的编译逻辑，被 build-source-deb.sh 调用
-.github/workflows/  build-deb-source · build-deb · watch-upstream(6h) · watch-tools(每日) · smoke-device · spike-*
+.github/workflows/  build-deb-source · build-deb · watch-upstream(6h) · watch-tools(每日) · publish-tool-cache(lock 变更) · smoke-device · spike-*
 docs/               BUILD 编译指南 · LESSONS 踩坑全集 · spike-android-bun 开发记录
 cache/ build/ dist/ gitignore；make clean 连 dist/ 一起删
 ```
@@ -91,6 +92,7 @@ make install && make smoke                                # 设备：TUI + 后�
 make smoke-service                                       # 只测后台服务（隔离 XDG）
 make smoke-static && make check-16kb                      # 任意
 make check-tool-updates                                   # lock 里的工具是否有新版
+make publish-tool-cache                                  # 缓存当前 lock 的 deb
 make smoke-release TAG=v2.3.0+termux3                     # release 装机冒烟
 bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓库跑
 ```

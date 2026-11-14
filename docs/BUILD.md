@@ -37,9 +37,13 @@ make check-tool-updates     # 对比 lock 与 Termux Packages，只报告不改�
 make smoke-static && make check-16kb
 make smoke-service          # 设备
 # 发新的 +termuxN，不要覆盖旧 release
+make publish-tool-cache     # 把本次 lock 的 deb 缓存到 toolchain-cache release
 ```
 
 `watch-tools` workflow 每天检查一次，只维护一个 issue，不自动改 lock、不自动发版。
+`publish-tool-cache` 在 lock 变更时自动缓存整套 deb；构建时优先用
+`toolchain-cache` 的内容寻址 tar.zst，再回退到 Termux 源。缓存不提交进 Git，
+也不影响 runtime bundle 大小。
 
 ---
 

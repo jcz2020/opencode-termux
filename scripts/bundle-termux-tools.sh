@@ -27,6 +27,11 @@ LOCK="$ROOT/scripts/termux-tools.lock"
 CACHE="$ROOT/cache/termux-tools"
 EXTRACT="$CACHE/extract"
 STAGE_USR="$STAGE/usr"
+REPO="${GITHUB_REPOSITORY:-jcz2020/opencode-termux}"
+TOOL_CACHE_TAG="${TOOL_CACHE_TAG:-toolchain-cache}"
+LOCK_SHA="$(sha256sum "$LOCK" | awk '{print $1}')"
+CACHE_ASSET="termux-tools-${LOCK_SHA}.tar.zst"
+CACHE_TMP="$CACHE/.${CACHE_ASSET}.tmp"
 
 [ -f "$LOCK" ] || { echo "ERROR: 缺少 $LOCK" >&2; exit 1; }
 
@@ -46,6 +51,47 @@ verify_sha() {
   local have
   have="$(sha256sum "$file" | awk '{print $1}')"
   [ "$have" = "$want" ]
+}
+
+all_debs_valid() {
+  local name version rel sha
+  while IFS='|' read -r name version rel sha; do
+    case "$name" in
+      ""|\#*) continue ;;
+    esac
+    verify_sha "$CACHE/$name.deb" "$sha" || return 1
+  done < "$LOCK"
+  return 0
+}
+
+# 优先从我们自己的 toolchain-cache release 取整套 deb。Termux 会删旧版本，
+# 这个缓存保证历史 lock 还能重建；sha 仍逐个校验。
+download_tool_cache() {
+  all_debs_valid && return 0
+
+  local cache_url="https://github.com/$REPO/releases/download/$TOOL_CACHE_TAG/$CACHE_ASSET"
+  local prefix url
+  for prefix in "" "https://ghfast.top/" "https://ghproxy.net/"; do
+    url="${prefix}${cache_url}"
+    echo "    尝试工具缓存: $url"
+    rm -f "$CACHE_TMP"
+    if ! curl -fSL --retry 1 --retry-all-errors --connect-timeout 8 -m 90 -o "$CACHE_TMP" "$url"; then
+      continue
+    fi
+    if ! tar --zstd -tf "$CACHE_TMP" >/dev/null 2>&1; then
+      echo "    WARN: 工具缓存不是合法 tar.zst，继续用 Termux 源" >&2
+      rm -f "$CACHE_TMP"
+      continue
+    fi
+    tar --zstd -xf "$CACHE_TMP" -C "$CACHE"
+    rm -f "$CACHE_TMP"
+    if all_debs_valid; then
+      echo "    工具缓存命中: $CACHE_ASSET"
+      return 0
+    fi
+    echo "    WARN: 工具缓存 sha 校验失败，继续用 Termux 源" >&2
+  done
+  return 1
 }
 
 fetch_deb() {
@@ -70,6 +116,10 @@ fetch_deb() {
   echo "ERROR: 无法下载或校验 $name ($rel)" >&2
   return 1
 }
+
+if ! all_debs_valid; then
+  download_tool_cache || echo "    note: 工具缓存不可用，改为从 Termux 源下载" >&2
+fi
 
 pkg_count=0
 while IFS='|' read -r name version rel sha; do
