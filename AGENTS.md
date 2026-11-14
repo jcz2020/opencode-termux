@@ -141,6 +141,7 @@ bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓�
 - API 建 tag 不触发 push 事件 → 发版/跟进用 `gh workflow run`。
 - 镜像线 tag 匹配 `'v*\+mirror*'`（glob 里 `+` 要转义），另有 if 兜底。
 - 上游 `releases/latest` 指向 v1；v2 要自己按 semver 取最大。npm 的 aarch64 只到 1.19.5（v1），v2 只能源码编。
+- `toolchain-cache` release 存 `termux-tools-<lock-sha>.tar.zst`（约 22 MB），不是 latest；Termux 删旧 deb 时靠它回退。不要删仍在使用的缓存资产。
 
 ## 验证
 `make smoke-static` →（装机）`make smoke` → `scripts/e2e-scenarios.sh`。**“能渲染”不等于“能用”**：曾漏掉 `Missing OpenTUI asset`，TUI 起来后一发消息就崩；CI 绿 ≠ 事做成了（`$GITHUB_OUTPUT` 没写成时 step 仍报 success）。
