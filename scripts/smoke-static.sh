@@ -41,6 +41,9 @@ fi
 for f in $REQUIRED; do
   if [ -f "$P/$f" ]; then ok "$f"; else bad "$f 缺失"; fi
 done
+if [ "$SOURCE_LINE" = 1 ] && [ -f "$P/bin/opencode-pty" ] && [ ! -x "$P/bin/opencode-pty" ]; then
+  bad "bin/opencode-pty 没有执行权限"
+fi
 
 echo "==> wrapper 指向的路径都存在"
 wrapper="$(cat "$P/bin/opencode")"

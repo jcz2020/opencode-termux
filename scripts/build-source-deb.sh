@@ -287,6 +287,7 @@ find "$BUILD" -type d -exec chmod 755 {} +
 find "$BUILD" -type f -exec chmod 644 {} +
 chmod 755 "$BUILD/DEBIAN/postinst" "$BUILD/$PREFIX_DIR/bin/opencode" \
           "$BUILD/$PREFIX_DIR/bin/opencode.real" \
+          "$BUILD/$PREFIX_DIR/bin/opencode-pty" \
           "$BUILD/$PREFIX_DIR/lib/opencode/libnoheap.so" \
           "$BUILD/$PREFIX_DIR/lib/opencode/librust_pty.so" \
           "$BUILD/$PREFIX_DIR/lib/opencode/opencode-updater.sh"

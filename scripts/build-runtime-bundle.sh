@@ -81,7 +81,7 @@ fi
 
 # 拷贝二进制与库
 cp "$USR_SRC/bin/opencode.real" "$STAGE/usr/bin/opencode.real"
-[ -f "$USR_SRC/bin/opencode-pty" ] && cp "$USR_SRC/bin/opencode-pty" "$STAGE/usr/bin/opencode-pty"
+[ -f "$USR_SRC/bin/opencode-pty" ] && install -m 755 "$USR_SRC/bin/opencode-pty" "$STAGE/usr/bin/opencode-pty"
 cp -a "$USR_SRC/lib/opencode/"* "$STAGE/usr/lib/opencode/"
 
 # opencode agent 会通过 PATH 调 git / rg；runtime bundle 直接提供它们，
