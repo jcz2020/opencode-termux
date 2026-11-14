@@ -94,6 +94,7 @@ NDK_ROOT=... PATH=... make source-deb VERSION=2.3.0 REV=5 # 源码线，仅 x86_
 make install && make smoke                                # 设备：TUI + 后台服务
 make smoke-service                                       # 只测后台服务（隔离 XDG）
 make smoke-pty                                           # 只测 opencode-pty 持久 PTY
+make smoke-pty-leak                                      # 只测 pipe/PTY 僵尸回收（Z==0）
 make smoke-watcher                                       # 只测文件监听与事件通知
 make smoke-static && make check-16kb                      # 任意
 make check-tool-updates                                   # lock 里的工具是否有新版
@@ -104,7 +105,7 @@ bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓�
 - `make source-deb` 需要 NDK r27c、**zig 0.17.0**（脚本按 opentui `.zig-version` 严格比对）、bun、cargo + `aarch64-linux-android`、jq；`API=28` 可换 API level（默认 30）。
 - `make verify-abi` 依赖 dist/build 解包产物；日常直接调 `scripts/verify-abi.sh`。
 
-## 源码线的八个硬坑
+## 源码线的九个硬坑
 
 1. **原生库 / JS / 包版本必须对齐**。`@opentui/*` 与 `libopentui.so` 不一致时，
    静态检查看不出来，运行时才报 `ot_session_get_renderer_state failed: InvalidArgument`。
@@ -153,6 +154,17 @@ bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓�
    **改这段补丁前先跑 `spike/opencode-android/test-patch-watcher.py`**：
    `FSUtil.globMatch` 不是静态函数、`Glob.match` 参数是 `(pattern, path)`，
    termux6 就是栽在这两处（带 ignore 的监听静默失效）。`make smoke-watcher` 做全链路验证。
+9. **opencode-pty 的 pipe 子进程会「故意」留僵尸**。`packages/process-daemon` 的
+   `service/pipe/unix.rs` 用 `waitid(WNOWAIT)` 探测退出但**不 reap**，靠僵尸占住
+   PID/PGID，保证之后对残留子孙的 `killpg` 不会误伤；只有 `terminate` → `shutdown`
+   才 `reap`。而 opencode 侧 `EXITED_LIMIT = 25`，只有历史溢出才 eviction，
+   于是长会话稳定残留 **25 个 Z**（`PPID=opencode-pty`，comm 是 `sh`/`sleep`）。
+   修复在 `spike/process-daemon-android/patch-reap.py`：退出消息发出后，若
+   **进程组没有非僵尸成员**就 `reap`（Linux/Android 扫 `/proc`；macOS 用
+   `killpg`→ESRCH）。有活成员（`cmd &`）仍保留僵尸，语义不变。
+   **`kill(-pgid, 0)` 不能判空**：Linux 上组内只剩僵尸也返回 0。
+   daemon 必须从源码构建（npm 包没这个补丁），需要 zig **0.16**（ghostty）+ cargo-zigbuild；
+   `make smoke-pty-leak` 把 Z 计数纳入门禁。
 
 另外：CI 用官方 `bun-linux-aarch64-android`（`BUN_RELEASE=bun-v1.4.4`），
 不需要自己交叉编 bun。bun 1.4 的 isolated 安装会把包放到

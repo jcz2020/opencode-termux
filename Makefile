@@ -1,7 +1,7 @@
 VERSION ?= 2.3.0
-REV     ?= 7   # 下一个待发布修订号（6 已发布，避免误覆盖）
+REV     ?= 8   # 下一个待发布修订号（7 已发布，避免误覆盖）
 
-.PHONY: help fetch deb install smoke smoke-service smoke-pty smoke-watcher smoke-static smoke-release source-deb verify-abi check-16kb check-tool-updates publish-tool-cache clean runtime-bundle
+.PHONY: help fetch deb install smoke smoke-service smoke-pty smoke-pty-leak smoke-watcher smoke-static smoke-release source-deb verify-abi check-16kb check-tool-updates publish-tool-cache clean runtime-bundle
 
 help:
 	@echo "── 二进制重打包线（拿上游 bionic 二进制）──"
@@ -17,6 +17,7 @@ help:
 	@echo "make smoke                  # TUI + 后台服务 + PTY 冒烟（本机已装的包）"
 	@echo "make smoke-service          # 只测 2.3.0 后台服务启动（隔离 XDG）"
 	@echo "make smoke-pty              # 只测 opencode-pty 持久 PTY daemon"
+	@echo "make smoke-pty-leak         # 只测 pipe/PTY 僵尸回收（Z == 0）"
 	@echo "make smoke-static           # 解包 dist/*.deb 做静态体检（不需要设备）"
 	@echo "make smoke-release TAG=v2.3.0+termux7   # 从 release 拉 deb 装到设备再冒烟"
 	@echo "make verify-abi             # 只跑 FFI 符号/依赖校验"
@@ -47,12 +48,16 @@ smoke:
 	bash scripts/smoke-service.sh
 	bash scripts/smoke-pty.sh
 	bash scripts/smoke-watcher.sh
+	bash scripts/smoke-pty-leak.sh
 
 smoke-service:
 	bash scripts/smoke-service.sh
 
 smoke-pty:
 	bash scripts/smoke-pty.sh
+
+smoke-pty-leak:
+	bash scripts/smoke-pty-leak.sh
 
 smoke-watcher:
 	bash scripts/smoke-watcher.sh

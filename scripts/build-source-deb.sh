@@ -161,7 +161,16 @@ cp "$BIN" "$WORK/opencode.stripped"
 ls -la "$BIN" "$WORK/opencode.stripped" | awk '{print "   ", $5, $9}'
 
 echo "==> opencode-pty（持久 PTY 服务）"
-bash "$ROOT/scripts/fetch-opencode-pty.sh" "$WORK/opencode-pty"
+# 必须从源码构建：上游 0.5.2 的 pipe 子进程退出后保留僵尸，只有显式 terminate
+# 才 reap；opencode 侧只在 25 条历史溢出时 eviction，于是长会话稳定残留 25 个 Z。
+# 修复（安全 reap）在 process-daemon 里，npm 预编译包没有。
+if [ "${OPTPTY_FROM_SOURCE:-1}" = "1" ]; then
+  bash "$ROOT/spike/process-daemon-android/build.sh" \
+    "$WORK/oc/packages/process-daemon" "$WORK/opencode-pty"
+else
+  echo "   WARN: OPTPTY_FROM_SOURCE=0 → 使用 npm 预编译包（不含僵尸回收补丁）" >&2
+  bash "$ROOT/scripts/fetch-opencode-pty.sh" "$WORK/opencode-pty"
+fi
 
 echo "==> 16 KB 页对齐检查（Android 15/16）"
 python3 "$ROOT/scripts/check-16kb-pages.py" \

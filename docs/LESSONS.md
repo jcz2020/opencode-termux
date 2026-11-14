@@ -331,9 +331,40 @@
 - **termux7 的真机结论**：`/storage/emulated/0/OpenCode` 下增/改/删/子目录/空目录/重命名全部能收到 `filesystem.changed`，配置目录新增 agent 可热重载，冷启动 `backend not supported` 与 `EACCES` 均为 0。
 - **教训**：**Android 移动端文件系统不能假设 POSIX/inotify 语义完整**。FUSE 挂载点上的跨进程文件监控必须优先保证 Polling 递归快照兜底，且必须严格限制祖先遍历边界。更要紧的是：**「能出事件」不能证明「所有监听都活着」**——带 ignore 的订阅路径要单独验证。
 
----
+### 29. opencode-pty 的 pipe 僵尸：不是「忘了 wait」，是「故意不 reap」
 
-## 六、可以推广的几条
+- **怎么发现的**：App 长会话后约 25 个 `Z`，`PPID` 全部是 `opencode-pty`，server 重启清零。
+- **先排除 PTY**：`service.rs` 的 PTY wait 线程走 `child.wait()`，真回收；35 次 PTY
+  创建/删除、10 个自行退出的 PTY，Z 都是 0。
+- **真正的来源**：`service/pipe/unix.rs` 用 `waitid(WEXITED | WNOWAIT)` 只探测退出，
+  故意把子进程留成僵尸——占住 PID/PGID，保证之后对残留子孙的 `killpg` 不会误伤；
+  只有 `TerminalHandle::shutdown()`（`terminate`/eviction）才 `waitpid`。
+  而 `core/src/shell.ts` 的 `EXITED_LIMIT = 25` 只在历史溢出时 eviction，于是：
+  - 第 1 条命令 → 1 个 Z，正常/非 0/超时都算；
+  - 第 25 条后**稳定停在 25**，空闲多久都不会掉；
+  - 显式 `DELETE` 一条已完成命令 → Z 立刻 -1；
+  - 停 server → 0。
+- **为什么不能「随手 reap」**：
+  1. `kill(-pgid, 0)` **不能**判断组已空——Linux/Android 上组内只剩僵尸也返回 0
+     （macOS 才返回 ESRCH），照着写会把「还有后台子进程」的场景误判成安全；
+  2. `SIGCHLD=SIG_IGN` / `waitpid(-1)` 会丢 exitCode，`Exited` 事件直接坏掉。
+- **怎么修**：在 `unix.rs` 里加 `reap_when_group_empty()`：退出消息发出后，扫
+  `/proc/*/stat` 找 `pgrp == pid && state != 'Z'` 的成员；没有才 `reap`。
+  有活成员就保留僵尸（`cmd &` 语义不变），留给 eviction/terminate。
+  读不到 `/proc` 时返回 `None`，保守不 reap。
+- **构建代价**：npm 预编译包没有这个补丁，必须从 `packages/process-daemon` 源码编。
+  ghostty 的 `build.zig` 要求 **zig 0.16**，和 opentui 的 0.17 不能共用；
+  用 `cargo-zigbuild` 出 `aarch64-unknown-linux-musl` 静态二进制。
+- **测试陷阱**：daemon 的 socket 路径是
+  `$OPENCODE_PTY_SOCKET_DIR/opencode-pty-<uid>/<32hex>.sock`，后缀固定 56 字节。
+  超长时 daemon 直接 `error: path must be shorter than SUN_LEN` 退出，opencode
+  静默退化成 spawned shell（Z=0），看起来「没有 bug」。所以门禁必须先断言
+  daemon 真的起来了。
+- **教训**：**看到 Z 先分清「谁的孩子」**。父进程才有 waitpid 权限；App 侧再怎么
+  处理都回收不了。另外「故意保留僵尸」这种设计要单独记录，否则下一个人会以为是 bug
+  而去掉 `WNOWAIT`，把 `killpg` 的安全性一起弄丢。
+
+
 
 1. **验收标准要覆盖真实使用。**「能启动」不等于「能用」。
    冒烟要发真请求、要落盘核对。

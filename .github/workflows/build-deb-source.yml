@@ -12,7 +12,7 @@ on:
       rev:
         description: '本项目修订号（termux<N>，默认下一个未发布修订）'
         required: true
-        default: '7'
+        default: '8'
       publish:
         description: '构建后创建 release'
         required: false
@@ -28,6 +28,8 @@ permissions:
 env:
   NDK_VERSION: 'r27c'
   ZIG_VERSION: '0.17.0'
+  ZIG016_VERSION: '0.16.0'
+  CARGO_ZIGBUILD_VERSION: '0.24.1'
   BUN_RELEASE: 'bun-v1.4.4'
   API: '30'
 
@@ -44,12 +46,17 @@ jobs:
           unzip -q bun.zip && echo "$PWD/bun-linux-x64" >> "$GITHUB_PATH"
           curl -sSL -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
           tar -xf zig.tar.xz && echo "$PWD/zig-x86_64-linux-${ZIG_VERSION}" >> "$GITHUB_PATH"
+          # process-daemon 的 ghostty 要求 zig 0.16.x，和 opentui 的 0.17 不能共用。
+          curl -sSL -o zig016.tar.xz "https://ziglang.org/download/${ZIG016_VERSION}/zig-x86_64-linux-${ZIG016_VERSION}.tar.xz"
+          tar -xf zig016.tar.xz
+          echo "ZIG016=$PWD/zig-x86_64-linux-${ZIG016_VERSION}/zig" >> "$GITHUB_ENV"
           curl -sSL -o ndk.zip "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip"
           unzip -q ndk.zip && echo "NDK_ROOT=$PWD/android-ndk-${NDK_VERSION}" >> "$GITHUB_ENV"
           rustup toolchain install stable --profile minimal
           rustup target add aarch64-linux-android
+          cargo install cargo-zigbuild --locked --version "${CARGO_ZIGBUILD_VERSION}"
           export PATH="$PWD/bun-linux-x64:$PWD/zig-x86_64-linux-${ZIG_VERSION}:$PATH"
-          bun --version; zig version; rustc --version
+          bun --version; zig version; "$PWD/zig-x86_64-linux-${ZIG016_VERSION}/zig" version; rustc --version
 
       - name: Build deb from source
         env:
@@ -57,6 +64,7 @@ jobs:
         run: |
           set -euo pipefail
           export PATH="$PWD/bun-linux-x64:$PWD/zig-x86_64-linux-${ZIG_VERSION}:$PATH"
+          export ZIG="$ZIG016"
           bash scripts/build-source-deb.sh '${{ inputs.version }}' '${{ inputs.rev }}'
 
       - name: Static smoke (no device needed)

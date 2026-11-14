@@ -248,6 +248,35 @@ OPENCODE_BIN="$PWD/$P/bin/opencode" PREFIX="$PWD/$P" \
 WORKSPACE=/storage/emulated/0/OpenCode/watch-selftest bash scripts/smoke-watcher.sh
 ```
 
+### 8. opencode-pty 的 pipe 僵尸与安全回收
+
+`packages/process-daemon` 对 pipe 子进程采用「退出后保留僵尸」的设计：`waitid(WNOWAIT)`
+只探测退出，僵尸占住 PID/PGID，保证之后对残留子孙的 `killpg` 不会误伤无关进程，只有
+`terminate` 才真正 `waitpid`。而 opencode 侧 `EXITED_LIMIT = 25`，只在历史溢出时
+eviction，于是长会话稳定残留 25 个 Z。
+
+修复由 `spike/process-daemon-android/patch-reap.py` 注入：退出消息发出后，如果
+**进程组没有非僵尸成员**就立即 `reap`；有活成员（`cmd &`）仍保留僵尸。
+
+构建要求（与 opentui 的 zig 0.17 不能共用）：
+
+| 依赖 | 版本 | 说明 |
+|---|---|---|
+| rust | 1.90 | crate 自带 `rust-toolchain.toml`，rustup 会自动装 |
+| zig | **0.16.x** | ghostty 的 `build.zig` 要求 major.minor == 0.16 |
+| cargo-zigbuild | 0.24.x | 链接 aarch64-unknown-linux-musl |
+| git | 任意 | `build.rs` 会浅拉 ghostty 固定 revision |
+
+CI 里通过 `ZIG016_VERSION` 单独下载 0.16，`ZIG=<path>` 传给
+`spike/process-daemon-android/build.sh`。npm 预编译包不含该补丁；
+`OPTPTY_FROM_SOURCE=0` 可退回旧行为（仅用于对比/应急）。
+
+验证：
+```sh
+make smoke-pty-leak     # 50 条命令 + 50 次 PTY 后 Z == 0，并检查 exit/status/输出不回归
+```
+
+
 ---
 
 ## 想改点东西
@@ -263,6 +292,7 @@ WORKSPACE=/storage/emulated/0/OpenCode/watch-selftest bash scripts/smoke-watcher
 make smoke-static                 # 静态体检
 make smoke-service                # 2.3.0 后台服务启动（设备）
 make smoke-pty                    # opencode-pty 持久 PTY（设备）
+make smoke-pty-leak               # pipe/PTY 僵尸回收（设备）
 make smoke-watcher                # 文件监听 / 配置热重载（设备）
 bash scripts/e2e-scenarios.sh     # 沙箱里跑真实场景
 ```
