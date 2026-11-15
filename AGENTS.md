@@ -3,7 +3,7 @@
 **Generated:** 2026-11-13 · **Commit:** 1400fb7 · **Branch:** main
 
 ## OVERVIEW
-在 Termux/aarch64 上构建并发布 opencode。源码线（主线）自编 opencode + libopentui + bun-pty，tag `v<ver>+termux<N>`；镜像线（备选）重打包上游 bionic 二进制 + libnoheap，tag `v<ver>+mirror<N>`。当前发布 `v2.3.0+termux7`，runtime bundle 内置 git/rg/gh/fd/jq/busybox。
+在 Termux/aarch64 上构建并发布 opencode。源码线（主线）自编 opencode + libopentui + bun-pty，tag `v<ver>+termux<N>`；镜像线（备选）重打包上游 bionic 二进制 + libnoheap，tag `v<ver>+mirror<N>`。当前发布 `v2.3.0+termux8`，runtime bundle 内置 git/rg/gh/fd/jq/busybox。
 
 ## 其他项目：只读审查 + 提 issue，不直接改（强制）
 
@@ -99,10 +99,10 @@ make smoke-watcher                                       # 只测文件监听与
 make smoke-static && make check-16kb                      # 任意
 make check-tool-updates                                   # lock 里的工具是否有新版
 make publish-tool-cache                                  # 缓存当前 lock 的 deb
-make smoke-release TAG=v2.3.0+termux7                     # release 装机冒烟
+make smoke-release TAG=v2.3.0+termux8                     # release 装机冒烟
 bash scripts/e2e-scenarios.sh ~/tmp/oc-sandbox            # 沙箱，勿在仓库跑
 ```
-- `make source-deb` 需要 NDK r27c、**zig 0.17.0**（脚本按 opentui `.zig-version` 严格比对）、bun、cargo + `aarch64-linux-android`、jq；`API=28` 可换 API level（默认 30）。
+- `make source-deb` 需要 NDK r27c、**zig 0.17.0**（opentui）与 **zig 0.16.0**（process-daemon/ghostty，CI 用 `ZIG=` 传入）、bun、cargo-zigbuild、cargo + `aarch64-linux-android`、git、jq；`API=28` 可换 API level（默认 30）。
 - `make verify-abi` 依赖 dist/build 解包产物；日常直接调 `scripts/verify-abi.sh`。
 
 ## 源码线的九个硬坑

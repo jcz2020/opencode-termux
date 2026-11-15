@@ -77,7 +77,7 @@ export NDK_ROOT=$PWD/android-ndk-r27c
 export PATH="$PWD/zig-x86_64-linux-0.17.0:$PWD/bun-linux-x64:$PATH"
 
 make source-deb VERSION=2.3.0 REV=5
-# → dist/opencode_2.3.0+termux7_aarch64.deb (+ .sha256)
+# → dist/opencode_2.3.0+termux8_aarch64.deb (+ .sha256)
 ```
 
 装到设备上：
@@ -243,7 +243,7 @@ make smoke-watcher                                                   # 真机：
 
 真机验证时可对**未安装**的解包树跑，避免替换正在使用的服务：
 ```sh
-P=build/verify-termux7/root/data/data/com.termux/files/usr
+P=build/verify-termux8/root/data/data/com.termux/files/usr
 OPENCODE_BIN="$PWD/$P/bin/opencode" PREFIX="$PWD/$P" \
 WORKSPACE=/storage/emulated/0/OpenCode/watch-selftest bash scripts/smoke-watcher.sh
 ```

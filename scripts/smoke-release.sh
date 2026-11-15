@@ -88,6 +88,9 @@ bash "$(cd "$(dirname "$0")" && pwd)/smoke-service.sh"
 echo "==> 验 opencode-pty 持久 PTY"
 bash "$(cd "$(dirname "$0")" && pwd)/smoke-pty.sh"
 
+echo "==> 验 pipe/PTY 僵尸回收"
+bash "$(cd "$(dirname "$0")" && pwd)/smoke-pty-leak.sh"
+
 # ── 5. shell 工具（bun-pty 那条链） ─────────────────────────────
 echo "==> 验 shell 工具（bun-pty）"
 if command -v python3 >/dev/null; then
